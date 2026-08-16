@@ -9,7 +9,7 @@
 // columna "Categoria" de la Google Sheet.
 
 const CONFIG = {
-  SHEET_WEBAPP_URL: 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT',
+  SHEET_WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbxfpQcmJYDIcTr6TQPACIk4yLkmyXrDoDUrP6DmSrj0_GsLPcPCVsSLOIK4LQCfrKfsjQ/exec',
 
   CATEGORIAS: [
     'Ensaladas',

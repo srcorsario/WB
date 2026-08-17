@@ -87,7 +87,7 @@ h1, h2 { font-family: inherit; }
 /* ---------- Layout ---------- */
 
 main {
-  max-width: 1500px;
+  max-width: 1900px;
   margin: 0 auto;
   padding: 1.25rem 1.5rem 4rem;
 }
@@ -158,12 +158,15 @@ main {
 
 /* ---------- Categorías / lista de platos ---------- */
 
-/* Las categorías se reparten en 2 columnas (izquierda/derecha) sin partir
-   ninguna por la mitad: el navegador va rellenando la columna izquierda en
-   el orden de CONFIG.CATEGORIAS y pasa el resto a la derecha, intentando
-   que ambas columnas terminen con una altura similar. */
+/* Las categorías se reparten en columnas sin partir ninguna por la mitad:
+   el navegador las va colocando en el orden de CONFIG.CATEGORIAS, columna
+   a columna, intentando que todas terminen con una altura similar.
+   Se usa "column-width" (ancho ideal) en vez de fijar "column-count" a un
+   número: así el propio navegador añade una tercera columna, una cuarta...
+   según lo ancha que esté la pantalla, en vez de dejar huecos fijos a los
+   lados en monitores grandes. */
 #categorias-container {
-  column-count: 2;
+  column-width: 440px;
   column-gap: 1.5rem;
 }
 

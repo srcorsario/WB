@@ -18,7 +18,7 @@
 const CONFIG = {
   CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTdpZLG0yPVHJOIZAM0fLwvcNl02TztY_pHo27sHIUCy98LxTTiLdvS-faaZSa58ftSAI7e0H3Ys4mT/pub?output=csv',
 
-  WEBAPP_URL: 'PEGA_AQUI_TU_URL_DE_APPS_SCRIPT',
+  WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbwfPPBrDU6iLt0XnzjbAwag5IHphUrTsM0Orb7MVYhQRsZ8AHcqxAC578mRFjiz83_9HQ/exec',
 
   GEMINI_ENDPOINT_URL: 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
 

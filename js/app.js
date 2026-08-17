@@ -303,10 +303,16 @@ function renderCartelitos() {
     const grupo = seleccionados.slice(inicio, inicio + CARTELITOS_POR_HOJA);
     const esUltimaHoja = inicio + CARTELITOS_POR_HOJA >= seleccionados.length;
 
+    // Envuelve la etiqueta + la rejilla de esta hoja en un mismo bloque para
+    // que en pantalla mantengan la proporción real de un A4 vertical (y no
+    // se estiren a lo ancho de toda la pantalla como si fuera horizontal).
+    const wrapper = document.createElement('div');
+    wrapper.className = 'pagina-wrapper';
+
     const etiqueta = document.createElement('div');
     etiqueta.className = 'pagina-etiqueta no-print';
     etiqueta.textContent = `Hoja ${Math.floor(inicio / CARTELITOS_POR_HOJA) + 1} (A4)`;
-    contenedor.appendChild(etiqueta);
+    wrapper.appendChild(etiqueta);
 
     const hoja = document.createElement('div');
     hoja.className = 'cartelitos-grid pagina-cartelitos' + (esUltimaHoja ? ' pagina-final' : '');
@@ -318,7 +324,8 @@ function renderCartelitos() {
       hoja.appendChild(nodo);
     });
 
-    contenedor.appendChild(hoja);
+    wrapper.appendChild(hoja);
+    contenedor.appendChild(wrapper);
   }
 }
 

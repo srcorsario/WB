@@ -395,7 +395,30 @@ main {
 
 /* La selección se pinta en "hojas" de 8 cartelitos (2 columnas x 4 filas)
    — una por cada .cartelitos-grid.pagina-cartelitos — para que la vista en
-   pantalla sea un reflejo fiel de cómo va a salir en papel A4. */
+   pantalla sea un reflejo fiel de cómo va a salir en papel A4. Cada hoja se
+   envuelve en .pagina-wrapper con la proporción real de un A4 vertical
+   (210x297mm) para que en pantalla se vea como una página, no como una
+   tira ancha estirada horizontalmente. Con varias hojas y sitio de sobra,
+   se colocan una junto a otra (como una vista previa de impresión). */
+
+#cartelitos-paginas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 2rem;
+  overflow-x: auto;
+}
+
+.pagina-wrapper {
+  /* Ancho fijo (no "width:100%"): si la hoja se encogiera para caber en
+     una pantalla estrecha, las 4 filas también se encogerían y el texto
+     de los cartelitos dejaría de caber. Mejor mantener siempre un tamaño
+     en el que el texto quepa bien y, si no cabe en la pantalla, dejar que
+     se desplace horizontalmente (igual que al ver un PDF real en el
+     móvil) en vez de deformar o recortar los cartelitos. */
+  width: 480px;
+  flex-shrink: 0;
+}
 
 .pagina-etiqueta {
   font-size: 0.8rem;
@@ -406,20 +429,17 @@ main {
   margin: 0 0 0.4rem 0.2rem;
 }
 
-.pagina-cartelitos + .pagina-etiqueta {
-  margin-top: 1.5rem;
-}
-
 .cartelitos-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  grid-auto-rows: 220px; /* todos los cartelitos miden lo mismo, dentro y fuera de cada hoja */
+  grid-template-rows: repeat(4, 1fr);
+  aspect-ratio: 210 / 297; /* proporción real de una hoja A4 vertical */
+  width: 100%;
   gap: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   overflow: hidden;
-  margin-bottom: 1rem;
 }
 
 .cartelito {
@@ -453,9 +473,9 @@ main {
 
 .no-print { }
 
-@media (max-width: 640px) {
-  .cartelitos-grid { grid-template-columns: 1fr; }
-}
+/* La rejilla de cartelitos mantiene siempre sus 2 columnas (incluso en
+   móvil): así la previsualización nunca miente sobre cómo va a salir la
+   hoja A4 impresa — solo se hace más pequeña, nunca cambia de forma. */
 
 @media (max-width: 760px) {
   #categorias-container { column-count: 1; }
@@ -470,6 +490,18 @@ main {
   .tab-panel { display: none !important; }
   #tab-cartelitos { display: block !important; }
 
+  /* La previsualización en pantalla usa flexbox + un ancho máximo por hoja
+     para que se vea con proporción de A4 vertical; en la hoja impresa de
+     verdad eso hay que anularlo para que cada hoja ocupe toda la página. */
+  #cartelitos-paginas {
+    display: block;
+  }
+
+  .pagina-wrapper {
+    max-width: none;
+    width: 100%;
+  }
+
   .cartelitos-grid {
     border: none;
     border-radius: 0;
@@ -478,8 +510,10 @@ main {
        imprimible en A4 (29.7cm - 2x1.2cm de margen): siempre caben las 4
        filas (8 cartelitos) de una hoja sin que ninguna se corte ni se pase
        a la hoja siguiente por medio cartelito. */
+    grid-template-rows: none;
     grid-auto-rows: 6.2cm;
-    margin-bottom: 0;
+    aspect-ratio: auto;
+    width: auto;
   }
 
   /* Cada hoja de 8 cartelitos empieza en su propia página impresa... */

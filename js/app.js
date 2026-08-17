@@ -272,12 +272,21 @@ function alternarSeleccion(id, marcado) {
 }
 
 // ---------- Render: pestaña Cartelitos ----------
+//
+// Los cartelitos se imprimen en hojas A4, y cada cartelito debe salir
+// siempre con el mismo tamaño (como en la plantilla de muestra: 2 columnas
+// x 4 filas = 8 cartelitos por hoja). Por eso aquí no se pinta una única
+// rejilla larga, sino que se trocea la selección en grupos de 8 y cada
+// grupo se pinta como su propia "hoja" — así el salto de página en la
+// impresión cae siempre justo entre un grupo de 8 y el siguiente, nunca a
+// mitad de un cartelito ni descuadrando el tamaño de las casillas.
+const CARTELITOS_POR_HOJA = 8; // 2 columnas x 4 filas, igual que la plantilla en A4
 
 function renderCartelitos() {
-  const grid = document.getElementById('cartelitos-grid');
+  const contenedor = document.getElementById('cartelitos-paginas');
   const mensajeVacio = document.getElementById('cartelitos-vacio-msg');
   const tpl = document.getElementById('tpl-cartelito');
-  grid.innerHTML = '';
+  contenedor.innerHTML = '';
 
   const seleccionados = platos
     .filter(p => seleccion.has(p.id))
@@ -290,12 +299,27 @@ function renderCartelitos() {
 
   mensajeVacio.hidden = seleccionados.length > 0;
 
-  seleccionados.forEach(plato => {
-    const nodo = tpl.content.cloneNode(true);
-    nodo.querySelector('.cartelito-es').textContent = plato.nombre_es;
-    nodo.querySelector('.cartelito-en').textContent = plato.nombre_en || '';
-    grid.appendChild(nodo);
-  });
+  for (let inicio = 0; inicio < seleccionados.length; inicio += CARTELITOS_POR_HOJA) {
+    const grupo = seleccionados.slice(inicio, inicio + CARTELITOS_POR_HOJA);
+    const esUltimaHoja = inicio + CARTELITOS_POR_HOJA >= seleccionados.length;
+
+    const etiqueta = document.createElement('div');
+    etiqueta.className = 'pagina-etiqueta no-print';
+    etiqueta.textContent = `Hoja ${Math.floor(inicio / CARTELITOS_POR_HOJA) + 1} (A4)`;
+    contenedor.appendChild(etiqueta);
+
+    const hoja = document.createElement('div');
+    hoja.className = 'cartelitos-grid pagina-cartelitos' + (esUltimaHoja ? ' pagina-final' : '');
+
+    grupo.forEach(plato => {
+      const nodo = tpl.content.cloneNode(true);
+      nodo.querySelector('.cartelito-es').textContent = plato.nombre_es;
+      nodo.querySelector('.cartelito-en').textContent = plato.nombre_en || '';
+      hoja.appendChild(nodo);
+    });
+
+    contenedor.appendChild(hoja);
+  }
 }
 
 function actualizarContador() {

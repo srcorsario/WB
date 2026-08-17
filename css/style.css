@@ -393,19 +393,39 @@ main {
 
 /* ---------- Cartelitos (pantalla) ---------- */
 
+/* La selección se pinta en "hojas" de 8 cartelitos (2 columnas x 4 filas)
+   — una por cada .cartelitos-grid.pagina-cartelitos — para que la vista en
+   pantalla sea un reflejo fiel de cómo va a salir en papel A4. */
+
+.pagina-etiqueta {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  margin: 0 0 0.4rem 0.2rem;
+}
+
+.pagina-cartelitos + .pagina-etiqueta {
+  margin-top: 1.5rem;
+}
+
 .cartelitos-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
+  grid-auto-rows: 220px; /* todos los cartelitos miden lo mismo, dentro y fuera de cada hoja */
   gap: 0;
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   overflow: hidden;
+  margin-bottom: 1rem;
 }
 
 .cartelito {
   border: 1px solid var(--color-border);
-  min-height: 190px;
+  height: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -454,11 +474,29 @@ main {
     border: none;
     border-radius: 0;
     grid-template-columns: repeat(2, 1fr);
+    /* 4 filas de 6.2cm cada una = 24.8cm, dentro de los 27.3cm de alto
+       imprimible en A4 (29.7cm - 2x1.2cm de margen): siempre caben las 4
+       filas (8 cartelitos) de una hoja sin que ninguna se corte ni se pase
+       a la hoja siguiente por medio cartelito. */
+    grid-auto-rows: 6.2cm;
+    margin-bottom: 0;
+  }
+
+  /* Cada hoja de 8 cartelitos empieza en su propia página impresa... */
+  .pagina-cartelitos {
+    break-after: page;
+    page-break-after: always;
+  }
+
+  /* ...menos la última, para no dejar una hoja en blanco al final. */
+  .pagina-cartelitos.pagina-final {
+    break-after: auto;
+    page-break-after: auto;
   }
 
   .cartelito {
     border: 1px solid #000;
-    min-height: 4.6cm;
+    height: 100%;
     break-inside: avoid;
     page-break-inside: avoid;
   }

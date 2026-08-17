@@ -189,13 +189,22 @@ main {
 .plato-item {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 0.7rem;
   padding: 0.55rem 0.2rem;
   border-bottom: 1px dashed var(--color-border);
-  cursor: pointer;
 }
 
 .plato-item:last-child { border-bottom: none; }
+
+.plato-item-principal {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  cursor: pointer;
+  flex: 1;
+  min-width: 0;
+}
 
 .plato-checkbox {
   width: 1.15rem;
@@ -208,6 +217,36 @@ main {
   display: flex;
   flex-direction: column;
   line-height: 1.25;
+  min-width: 0;
+}
+
+.plato-acciones {
+  display: flex;
+  gap: 0.3rem;
+  flex-shrink: 0;
+}
+
+.btn-icono {
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border-radius: 6px;
+  width: 1.9rem;
+  height: 1.9rem;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.15s;
+}
+
+.btn-icono:hover {
+  background: #f4efe4;
+}
+
+.btn-borrar-plato:hover {
+  background: #fdecea;
 }
 
 .plato-es {

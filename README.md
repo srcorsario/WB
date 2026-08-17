@@ -10,6 +10,7 @@ Usa el mismo patrón que ya tenéis en el editor de la carta ("Web Editor Pro"):
 - **Pestaña "Cartelitos"**: muestra automáticamente los platos marcados, con su nombre en español (arriba, en negrita) y su traducción en inglés (debajo), listos para imprimir con el botón "Imprimir / Guardar PDF".
 - **"⚙️ Traducción"**: aquí pegas tus claves de la API de Gemini (puedes añadir varias; si una se queda sin cuota, la web prueba la siguiente automáticamente). Se guardan solo en este navegador.
 - **Añadir plato nuevo**: desde el botón "+ Añadir plato" de cualquier categoría. Si dejas el nombre en inglés vacío, se traduce automáticamente y se guarda en la Google Sheet.
+- **Editar (✏️) y borrar (🗑️)**: cada plato de la lista tiene sus dos botones a la derecha. Editar reutiliza el mismo formulario de "Añadir plato" (puedes cambiar categoría, nombre en español o inglés, o volver a dejar el inglés en blanco para que se retraduzca). Borrar pide confirmación y no se puede deshacer.
 - La selección de "hoy" se guarda en el navegador (no en la hoja), así que cada dispositivo tiene su propia selección.
 
 ---

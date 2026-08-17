@@ -15,10 +15,12 @@
 
 const LS_SELECCION = 'cartelitos-seleccion';
 const LS_GEMINI_KEYS = 'cartelitos-geminiKeys';
-const LS_OPTIMISTAS = 'cartelitos-optimistas';
-const OPTIMISTA_TTL_MS = 10 * 60 * 1000; // 10 minutos: tiempo de sobra para que el CSV publicado se actualice
+const LS_PENDIENTES = 'cartelitos-pendientes'; // altas y ediciones aún no confirmadas en el CSV
+const LS_BORRADOS = 'cartelitos-borrados';     // bajas aún no confirmadas en el CSV
+const PENDIENTE_TTL_MS = 10 * 60 * 1000; // 10 minutos: tiempo de sobra para que el CSV publicado se actualice
 
 let platos = [];
+let platoEditandoId = null; // null = el modal "nuevo plato" está en modo alta; si no, en modo edición
 
 // ---------- Estado: selección persistida ----------
 
@@ -68,34 +70,58 @@ function ofuscarClave(k) {
   return k.length > 10 ? `${k.slice(0, 6)}...${k.slice(-4)}` : k;
 }
 
-// ---------- Platos "optimistas" (añadidos localmente en lo que el CSV se actualiza) ----------
+// ---------- Cambios "optimistas" (altas/ediciones/bajas locales mientras el CSV se actualiza) ----------
+//
+// Como guardar en la hoja va en modo "no-cors" no podemos confirmar si de verdad
+// se aplicó, y el CSV publicado tarda unos minutos en refrescarse. Por eso se
+// guarda aquí lo que el usuario acaba de cambiar y se aplica por encima de lo
+// que venga del CSV en cada carga, hasta que caduca (asumiendo que para entonces
+// el CSV ya lo refleja de verdad).
 
-function getOptimistas() {
+function getConTTL(clave) {
   try {
-    const raw = localStorage.getItem(LS_OPTIMISTAS);
+    const raw = localStorage.getItem(clave);
     const lista = raw ? JSON.parse(raw) : [];
     const ahora = Date.now();
-    const vigentes = lista.filter(p => ahora - p._ts < OPTIMISTA_TTL_MS);
-    if (vigentes.length !== lista.length) localStorage.setItem(LS_OPTIMISTAS, JSON.stringify(vigentes));
+    const vigentes = lista.filter(p => ahora - p._ts < PENDIENTE_TTL_MS);
+    if (vigentes.length !== lista.length) localStorage.setItem(clave, JSON.stringify(vigentes));
     return vigentes;
   } catch (e) {
     return [];
   }
 }
 
-function anadirOptimista(plato) {
-  const lista = getOptimistas();
+function getPendientes() { return getConTTL(LS_PENDIENTES); }
+function getBorrados() { return getConTTL(LS_BORRADOS); }
+
+function guardarPendiente(plato) {
+  const lista = getPendientes().filter(p => p.id !== plato.id);
   lista.push({ ...plato, _ts: Date.now() });
-  localStorage.setItem(LS_OPTIMISTAS, JSON.stringify(lista));
+  localStorage.setItem(LS_PENDIENTES, JSON.stringify(lista));
+  // si se había marcado como borrado y ahora se vuelve a guardar, ya no debe ocultarse
+  quitarBorrado(plato.id);
 }
 
-function fusionarConOptimistas(listaPlatos) {
-  const optimistas = getOptimistas();
-  const yaPresente = (opt) => listaPlatos.some(p =>
-    p.categoria === opt.categoria && p.nombre_es.trim().toLowerCase() === opt.nombre_es.trim().toLowerCase()
-  );
-  const faltantes = optimistas.filter(opt => !yaPresente(opt));
-  return [...listaPlatos, ...faltantes.map(({ _ts, ...p }) => p)];
+function quitarPendiente(id) {
+  localStorage.setItem(LS_PENDIENTES, JSON.stringify(getPendientes().filter(p => p.id !== id)));
+}
+
+function anadirBorrado(id) {
+  const lista = getBorrados().filter(b => b.id !== id);
+  lista.push({ id, _ts: Date.now() });
+  localStorage.setItem(LS_BORRADOS, JSON.stringify(lista));
+  quitarPendiente(id);
+}
+
+function quitarBorrado(id) {
+  localStorage.setItem(LS_BORRADOS, JSON.stringify(getBorrados().filter(b => b.id !== id)));
+}
+
+function aplicarPendientes(listaPlatos) {
+  const porId = new Map(listaPlatos.map(p => [p.id, p]));
+  getPendientes().forEach(({ _ts, ...p }) => porId.set(p.id, p));
+  getBorrados().forEach(b => porId.delete(b.id));
+  return [...porId.values()];
 }
 
 // ---------- Carga de datos (CSV publicado) ----------
@@ -138,7 +164,7 @@ async function cargarPlatos() {
     aviso.hidden = false;
     aviso.textContent = '⚠️ Falta configurar CSV_URL en js/config.js con el enlace de "Publicar en la web" de tu Google Sheet.';
     estado.hidden = true;
-    platos = fusionarConOptimistas([]);
+    platos = aplicarPendientes([]);
     renderTodo();
     return;
   }
@@ -149,12 +175,12 @@ async function cargarPlatos() {
     if (!resp.ok) throw new Error('Error HTTP ' + resp.status);
     const texto = await resp.text();
     const filas = parseCSV(texto);
-    platos = fusionarConOptimistas(filasAPlatos(filas));
+    platos = aplicarPendientes(filasAPlatos(filas));
     aviso.hidden = true;
   } catch (err) {
     aviso.hidden = false;
     aviso.textContent = '⚠️ No se pudo leer la Google Sheet (' + err.message + '). Comprueba CSV_URL en js/config.js.';
-    platos = fusionarConOptimistas(platos);
+    platos = aplicarPendientes(platos);
   }
 
   estado.hidden = true;
@@ -217,6 +243,8 @@ function renderCategorias(filtro = '') {
         checkbox.addEventListener('change', () => alternarSeleccion(plato.id, checkbox.checked));
         nodo.querySelector('.plato-es').textContent = plato.nombre_es;
         nodo.querySelector('.plato-en').textContent = plato.nombre_en || '';
+        nodo.querySelector('.btn-editar-plato').addEventListener('click', () => abrirModalEditarPlato(plato));
+        nodo.querySelector('.btn-borrar-plato').addEventListener('click', () => borrarPlato(plato));
         lista.appendChild(nodo);
       });
     }
@@ -355,10 +383,9 @@ function cerrarModalAjustes() {
   document.getElementById('modal-ajustes').hidden = true;
 }
 
-// ---------- Modal: añadir plato nuevo ----------
+// ---------- Modal: añadir / editar plato ----------
 
-function abrirModalNuevoPlato(categoriaPreseleccionada) {
-  const modal = document.getElementById('modal-nuevo-plato');
+function llenarSelectCategorias(categoriaPreseleccionada) {
   const select = document.getElementById('nuevo-categoria');
   select.innerHTML = '';
   categoriasOrdenadas().forEach(cat => {
@@ -368,23 +395,61 @@ function abrirModalNuevoPlato(categoriaPreseleccionada) {
     select.appendChild(opt);
   });
   if (categoriaPreseleccionada) select.value = categoriaPreseleccionada;
+}
+
+function abrirModalNuevoPlato(categoriaPreseleccionada) {
+  platoEditandoId = null;
+  document.getElementById('modal-nuevo-plato-titulo').textContent = 'Añadir plato nuevo';
+  document.getElementById('btn-guardar-nuevo').textContent = 'Guardar plato';
+  llenarSelectCategorias(categoriaPreseleccionada);
 
   document.getElementById('nuevo-nombre-es').value = '';
   document.getElementById('nuevo-nombre-en').value = '';
   document.getElementById('form-nuevo-plato-error').hidden = true;
-  modal.hidden = false;
+  document.getElementById('modal-nuevo-plato').hidden = false;
+  document.getElementById('nuevo-nombre-es').focus();
+}
+
+function abrirModalEditarPlato(plato) {
+  platoEditandoId = plato.id;
+  document.getElementById('modal-nuevo-plato-titulo').textContent = 'Editar plato';
+  document.getElementById('btn-guardar-nuevo').textContent = 'Guardar cambios';
+  llenarSelectCategorias(plato.categoria);
+
+  document.getElementById('nuevo-nombre-es').value = plato.nombre_es;
+  document.getElementById('nuevo-nombre-en').value = plato.nombre_en || '';
+  document.getElementById('form-nuevo-plato-error').hidden = true;
+  document.getElementById('modal-nuevo-plato').hidden = false;
   document.getElementById('nuevo-nombre-es').focus();
 }
 
 function cerrarModalNuevoPlato() {
   document.getElementById('modal-nuevo-plato').hidden = true;
+  platoEditandoId = null;
 }
 
 function siguienteId() {
   const idsLocales = platos.map(p => p.id).filter(id => !isNaN(id));
-  const idsOptimistas = getOptimistas().map(p => p.id).filter(id => !isNaN(id));
-  const todos = [...idsLocales, ...idsOptimistas];
+  const idsPendientes = getPendientes().map(p => p.id).filter(id => !isNaN(id));
+  const todos = [...idsLocales, ...idsPendientes];
   return todos.length ? Math.max(...todos) + 1 : 1;
+}
+
+// Envía un alta o una edición al Apps Script en modo "no-cors" (sin poder leer
+// la respuesta) y actualiza la vista al momento con el resultado esperado.
+function guardarPlatoRemoto(accion, plato) {
+  fetch(CONFIG.WEBAPP_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: accion, ...plato })
+  }).catch(() => { /* no-cors: los errores de red reales igualmente no se pueden leer */ });
+
+  guardarPendiente(plato);
+
+  const idx = platos.findIndex(p => p.id === plato.id);
+  if (idx !== -1) platos[idx] = plato;
+  else platos.push(plato);
 }
 
 async function enviarNuevoPlato(ev) {
@@ -402,6 +467,7 @@ async function enviarNuevoPlato(ev) {
   const categoria = document.getElementById('nuevo-categoria').value;
   const nombreEs = document.getElementById('nuevo-nombre-es').value.trim();
   let nombreEn = document.getElementById('nuevo-nombre-en').value.trim();
+  const esEdicion = platoEditandoId !== null;
 
   const btnGuardar = document.getElementById('btn-guardar-nuevo');
   btnGuardar.disabled = true;
@@ -413,31 +479,45 @@ async function enviarNuevoPlato(ev) {
     }
 
     btnGuardar.textContent = 'Guardando...';
-    const nuevoPlato = { id: siguienteId(), categoria, nombre_es: nombreEs, nombre_en: nombreEn };
+    const plato = { id: esEdicion ? platoEditandoId : siguienteId(), categoria, nombre_es: nombreEs, nombre_en: nombreEn };
 
-    // Modo "no-cors": la petición se envía pero no podemos leer si tuvo éxito.
-    // Por eso guardamos el plato como "optimista" y lo añadimos ya a la vista.
-    fetch(CONFIG.WEBAPP_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'add', ...nuevoPlato })
-    }).catch(() => { /* no-cors: los errores de red reales igualmente no se pueden leer */ });
+    guardarPlatoRemoto(esEdicion ? 'update' : 'add', plato);
 
-    anadirOptimista(nuevoPlato);
-    platos.push(nuevoPlato);
-    seleccion.add(nuevoPlato.id);
+    if (!esEdicion) seleccion.add(plato.id);
     guardarSeleccion(seleccion);
 
     cerrarModalNuevoPlato();
     renderTodo();
   } catch (err) {
-    errorBox.textContent = 'No se pudo añadir el plato: ' + err.message;
+    errorBox.textContent = 'No se pudo guardar el plato: ' + err.message;
     errorBox.hidden = false;
   } finally {
     btnGuardar.disabled = false;
-    btnGuardar.textContent = 'Guardar plato';
+    btnGuardar.textContent = esEdicion ? 'Guardar cambios' : 'Guardar plato';
   }
+}
+
+// ---------- Borrar plato ----------
+
+function borrarPlato(plato) {
+  if (!CONFIG.WEBAPP_URL || CONFIG.WEBAPP_URL.includes('PEGA_AQUI')) {
+    alert('Falta configurar WEBAPP_URL en js/config.js con la URL del Apps Script.');
+    return;
+  }
+  if (!confirm(`¿Borrar "${plato.nombre_es}" de la carta? Esta acción no se puede deshacer.`)) return;
+
+  fetch(CONFIG.WEBAPP_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action: 'delete', id: plato.id })
+  }).catch(() => { /* no-cors: los errores de red reales igualmente no se pueden leer */ });
+
+  anadirBorrado(plato.id);
+  platos = platos.filter(p => p.id !== plato.id);
+  seleccion.delete(plato.id);
+  guardarSeleccion(seleccion);
+  renderTodo();
 }
 
 // ---------- Inicialización ----------

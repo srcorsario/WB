@@ -52,13 +52,19 @@
 
 <!-- ================= PLANTILLA: tarjeta de plato con checkbox ================= -->
 <template id="tpl-plato-item">
-  <label class="plato-item">
-    <input type="checkbox" class="plato-checkbox">
-    <span class="plato-nombres">
-      <span class="plato-es"></span>
-      <span class="plato-en"></span>
-    </span>
-  </label>
+  <div class="plato-item">
+    <label class="plato-item-principal">
+      <input type="checkbox" class="plato-checkbox">
+      <span class="plato-nombres">
+        <span class="plato-es"></span>
+        <span class="plato-en"></span>
+      </span>
+    </label>
+    <div class="plato-acciones no-print">
+      <button type="button" class="btn-icono btn-editar-plato" title="Editar plato">✏️</button>
+      <button type="button" class="btn-icono btn-borrar-plato" title="Borrar plato">🗑️</button>
+    </div>
+  </div>
 </template>
 
 <!-- ================= PLANTILLA: cartelito impreso ================= -->
@@ -72,7 +78,7 @@
 <!-- ================= MODAL: añadir plato nuevo ================= -->
 <div id="modal-nuevo-plato" class="modal no-print" hidden>
   <div class="modal-contenido">
-    <h2>Añadir plato nuevo</h2>
+    <h2 id="modal-nuevo-plato-titulo">Añadir plato nuevo</h2>
     <form id="form-nuevo-plato">
       <label>Categoría
         <select id="nuevo-categoria" required></select>

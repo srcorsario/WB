@@ -1,40 +1,24 @@
 /* Cartelitos Buffet — lógica de la web
  * -----------------------------------------------------------------
- * - Lee los platos desde el Apps Script conectado a la Google Sheet
- *   (ver CONFIG.SHEET_WEBAPP_URL en config.js).
- * - Si esa URL todavía no está configurada, o falla la conexión,
- *   la web arranca en "modo demo" con unos platos de ejemplo para
- *   que puedas ver cómo funciona mientras terminas de configurarla.
- * - La selección de hoy se guarda en el navegador (localStorage).
+ * Mismo patrón que el editor de la carta (Web Editor Pro):
+ *  - LECTURA: CSV publicado de la Google Sheet (CONFIG.CSV_URL), vía
+ *    fetch normal — Google lo sirve con cabeceras CORS abiertas, así
+ *    que no hace falta ningún backend para leer los platos.
+ *  - ESCRITURA (añadir plato): POST al Apps Script (CONFIG.WEBAPP_URL)
+ *    en modo "no-cors" — la petición se envía pero no podemos leer la
+ *    respuesta, así que actualizamos la lista de forma "optimista"
+ *    (la añadimos localmente al momento) y confiamos en que llegará.
+ *  - TRADUCCIÓN: se llama a Gemini directamente desde el navegador,
+ *    con una o varias claves que el propio usuario pega en el botón
+ *    "⚙️ Traducción" (se guardan solo en localStorage, nunca en el código).
  */
 
 const LS_SELECCION = 'cartelitos-seleccion';
-const LS_PIN = 'cartelitos-pin';
-
-const DEMO_PLATOS = [
-  { id: 1, categoria: 'Entrantes', nombre_es: 'Coca de pimientos', nombre_en: 'Pepper flatbread' },
-  { id: 2, categoria: 'Entrantes', nombre_es: 'Coca de pimientos con cerdo', nombre_en: 'Pepper flatbread with pork' },
-  { id: 3, categoria: 'Entrantes', nombre_es: 'Jalapeños rellenos de queso', nombre_en: 'Cheese stuffed peppers' },
-  { id: 4, categoria: 'Verduras', nombre_es: 'Calabacín', nombre_en: 'Zucchini' },
-  { id: 5, categoria: 'Verduras', nombre_es: 'Berenjena', nombre_en: 'Eggplant' },
-  { id: 6, categoria: 'Verduras', nombre_es: 'Zanahoria', nombre_en: 'Carrot' },
-  { id: 7, categoria: 'Verduras', nombre_es: 'Verduras a la plancha', nombre_en: 'Grilled vegetables' },
-  { id: 8, categoria: 'Verduras', nombre_es: 'Patatas asadas', nombre_en: 'Roasted potatoes' },
-  { id: 9, categoria: 'Verduras', nombre_es: 'Brócoli', nombre_en: 'Broccoli' },
-  { id: 10, categoria: 'Pescados', nombre_es: 'Caella a la plancha', nombre_en: 'Grilled caella fish' },
-  { id: 11, categoria: 'Carnes', nombre_es: 'Estofado de cerdo', nombre_en: 'Pork stew' },
-  { id: 12, categoria: 'Arroces y Pastas', nombre_es: 'Noodles con verdura', nombre_en: 'Noodles with vegetables' },
-  { id: 13, categoria: 'Arroces y Pastas', nombre_es: 'Arroz con verdura', nombre_en: 'Rice with vegetables' },
-  { id: 14, categoria: 'Salsas', nombre_es: 'Salsa Alfredo', nombre_en: 'Alfredo sauce' },
-  { id: 15, categoria: 'Postres', nombre_es: 'Tarta de Oreo', nombre_en: 'Oreo cake' },
-  { id: 16, categoria: 'Postres', nombre_es: 'Vasito de flan', nombre_en: 'Flan cup' },
-  { id: 17, categoria: 'Postres', nombre_es: 'Tarta de mango', nombre_en: 'Mango tart' },
-  { id: 18, categoria: 'Postres', nombre_es: 'Tarta de limón', nombre_en: 'Lemon pie' },
-  { id: 19, categoria: 'Bebidas', nombre_es: 'Smoothie de piña', nombre_en: 'Pineapple smoothie' }
-];
+const LS_GEMINI_KEYS = 'cartelitos-geminiKeys';
+const LS_OPTIMISTAS = 'cartelitos-optimistas';
+const OPTIMISTA_TTL_MS = 10 * 60 * 1000; // 10 minutos: tiempo de sobra para que el CSV publicado se actualice
 
 let platos = [];
-let modoDemo = false;
 
 // ---------- Estado: selección persistida ----------
 
@@ -53,39 +37,127 @@ function guardarSeleccion(set) {
 
 let seleccion = cargarSeleccion();
 
-// ---------- Carga de datos ----------
+// ---------- Claves de Gemini (guardadas en el navegador) ----------
+
+function getGeminiKeys() {
+  try {
+    const raw = localStorage.getItem(LS_GEMINI_KEYS);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function guardarGeminiKeys(keys) {
+  localStorage.setItem(LS_GEMINI_KEYS, JSON.stringify(keys));
+}
+
+function anadirGeminiKey(key) {
+  const keys = getGeminiKeys();
+  if (key && !keys.includes(key)) {
+    keys.push(key);
+    guardarGeminiKeys(keys);
+  }
+}
+
+function borrarGeminiKey(key) {
+  guardarGeminiKeys(getGeminiKeys().filter(k => k !== key));
+}
+
+function ofuscarClave(k) {
+  return k.length > 10 ? `${k.slice(0, 6)}...${k.slice(-4)}` : k;
+}
+
+// ---------- Platos "optimistas" (añadidos localmente en lo que el CSV se actualiza) ----------
+
+function getOptimistas() {
+  try {
+    const raw = localStorage.getItem(LS_OPTIMISTAS);
+    const lista = raw ? JSON.parse(raw) : [];
+    const ahora = Date.now();
+    const vigentes = lista.filter(p => ahora - p._ts < OPTIMISTA_TTL_MS);
+    if (vigentes.length !== lista.length) localStorage.setItem(LS_OPTIMISTAS, JSON.stringify(vigentes));
+    return vigentes;
+  } catch (e) {
+    return [];
+  }
+}
+
+function anadirOptimista(plato) {
+  const lista = getOptimistas();
+  lista.push({ ...plato, _ts: Date.now() });
+  localStorage.setItem(LS_OPTIMISTAS, JSON.stringify(lista));
+}
+
+function fusionarConOptimistas(listaPlatos) {
+  const optimistas = getOptimistas();
+  const yaPresente = (opt) => listaPlatos.some(p =>
+    p.categoria === opt.categoria && p.nombre_es.trim().toLowerCase() === opt.nombre_es.trim().toLowerCase()
+  );
+  const faltantes = optimistas.filter(opt => !yaPresente(opt));
+  return [...listaPlatos, ...faltantes.map(({ _ts, ...p }) => p)];
+}
+
+// ---------- Carga de datos (CSV publicado) ----------
+
+function parseCSV(texto) {
+  if (window.Papa) {
+    const resultado = window.Papa.parse(texto, { skipEmptyLines: true });
+    return resultado.data;
+  }
+  // Fallback simple si PapaParse no cargó (p.ej. sin conexión al CDN)
+  return texto.split(/\r?\n/).filter(l => l.trim() !== '').map(linea =>
+    linea.split(',').map(v => v.replace(/^"|"$/g, '').trim())
+  );
+}
+
+function filasAPlatos(filas) {
+  if (filas.length === 0) return [];
+  const cabeceras = filas[0].map(h => String(h).trim().toLowerCase());
+  const idxId = cabeceras.indexOf('id');
+  const idxCategoria = cabeceras.indexOf('categoria');
+  const idxEs = cabeceras.indexOf('nombre_es');
+  const idxEn = cabeceras.indexOf('nombre_en');
+
+  return filas.slice(1)
+    .filter(fila => fila.length > 1 && String(fila[idxCategoria] || '').trim() !== '')
+    .map((fila, i) => ({
+      id: idxId !== -1 && fila[idxId] ? Number(fila[idxId]) : i + 1,
+      categoria: String(fila[idxCategoria] || '').trim(),
+      nombre_es: String(fila[idxEs] || '').trim(),
+      nombre_en: idxEn !== -1 ? String(fila[idxEn] || '').trim() : ''
+    }))
+    .filter(p => p.nombre_es !== '');
+}
 
 async function cargarPlatos() {
-  const url = CONFIG.SHEET_WEBAPP_URL;
   const estado = document.getElementById('estado-carga');
   const aviso = document.getElementById('aviso-config');
 
-  if (!url || url.includes('PEGA_AQUI')) {
-    modoDemo = true;
-    platos = DEMO_PLATOS;
+  if (!CONFIG.CSV_URL || CONFIG.CSV_URL.includes('PEGA_AQUI')) {
     aviso.hidden = false;
-    aviso.textContent = '⚠️ Modo demo: configura SHEET_WEBAPP_URL en js/config.js para conectar tu Google Sheet real.';
+    aviso.textContent = '⚠️ Falta configurar CSV_URL en js/config.js con el enlace de "Publicar en la web" de tu Google Sheet.';
     estado.hidden = true;
+    platos = fusionarConOptimistas([]);
     renderTodo();
     return;
   }
 
   try {
-    const res = await fetch(url, { method: 'GET' });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Respuesta no válida');
-    platos = data.platos.map(p => ({ ...p, id: Number(p.id) }));
-    modoDemo = false;
+    // "&zx=" rompe la caché intermedia; sin cabeceras extra para no disparar un preflight CORS.
+    const resp = await fetch(CONFIG.CSV_URL + (CONFIG.CSV_URL.includes('?') ? '&' : '?') + 'zx=' + Date.now(), { cache: 'no-store' });
+    if (!resp.ok) throw new Error('Error HTTP ' + resp.status);
+    const texto = await resp.text();
+    const filas = parseCSV(texto);
+    platos = fusionarConOptimistas(filasAPlatos(filas));
     aviso.hidden = true;
-    estado.hidden = true;
   } catch (err) {
-    modoDemo = true;
-    platos = DEMO_PLATOS;
     aviso.hidden = false;
-    aviso.textContent = '⚠️ No se pudo conectar con la Google Sheet (' + err.message + '). Mostrando modo demo.';
-    estado.hidden = true;
+    aviso.textContent = '⚠️ No se pudo leer la Google Sheet (' + err.message + '). Comprueba CSV_URL en js/config.js.';
+    platos = fusionarConOptimistas(platos);
   }
 
+  estado.hidden = true;
   renderTodo();
 }
 
@@ -203,8 +275,84 @@ function renderTodo() {
 // ---------- Pestañas ----------
 
 function activarTab(nombre) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === nombre));
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === nombre));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + nombre));
+}
+
+// ---------- Traducción con Gemini (desde el navegador) ----------
+
+async function traducirConGemini(nombreEs, categoria) {
+  const keys = getGeminiKeys();
+  if (keys.length === 0) {
+    throw new Error('No hay ninguna clave de Gemini configurada. Pulsa "⚙️ Traducción" para añadir una.');
+  }
+
+  const prompt = 'Traduce al inglés el siguiente nombre de un plato de buffet/restaurante ' +
+    'para un cartelito de menú. Categoría: "' + categoria + '". ' +
+    'Nombre en español: "' + nombreEs + '". ' +
+    'Responde ÚNICAMENTE con el nombre traducido en inglés, tal y como se escribiría ' +
+    'en un cartelito (sin comillas, sin punto final, sin explicaciones).';
+
+  let ultimoError = '';
+
+  for (let i = 0; i < keys.length; i++) {
+    try {
+      const resp = await fetch(`${CONFIG.GEMINI_ENDPOINT_URL}?key=${keys[i]}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+      });
+      const data = await resp.json();
+
+      if (!resp.ok || data.error) {
+        ultimoError = data.error?.message || ('Error HTTP ' + resp.status);
+        continue; // prueba con la siguiente clave (p.ej. si esta se quedó sin cuota)
+      }
+
+      const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (texto) return texto.trim().replace(/^"|"$/g, '');
+      ultimoError = 'Respuesta de Gemini sin texto.';
+    } catch (err) {
+      ultimoError = err.message;
+    }
+  }
+
+  throw new Error(ultimoError || 'No se pudo traducir.');
+}
+
+// ---------- Modal: ajustes de traducción ----------
+
+function renderListaClaves() {
+  const cont = document.getElementById('lista-claves');
+  const keys = getGeminiKeys();
+  cont.innerHTML = '';
+
+  if (keys.length === 0) {
+    cont.innerHTML = '<p class="lista-claves-vacia">Todavía no has añadido ninguna clave.</p>';
+    return;
+  }
+
+  keys.forEach(k => {
+    const fila = document.createElement('div');
+    fila.className = 'clave-fila';
+    fila.innerHTML = `<span>${ofuscarClave(k)}</span>`;
+    const btnBorrar = document.createElement('button');
+    btnBorrar.className = 'btn pequeno secundario';
+    btnBorrar.textContent = 'Quitar';
+    btnBorrar.addEventListener('click', () => { borrarGeminiKey(k); renderListaClaves(); });
+    fila.appendChild(btnBorrar);
+    cont.appendChild(fila);
+  });
+}
+
+function abrirModalAjustes() {
+  renderListaClaves();
+  document.getElementById('nueva-clave-input').value = '';
+  document.getElementById('modal-ajustes').hidden = false;
+}
+
+function cerrarModalAjustes() {
+  document.getElementById('modal-ajustes').hidden = true;
 }
 
 // ---------- Modal: añadir plato nuevo ----------
@@ -223,7 +371,6 @@ function abrirModalNuevoPlato(categoriaPreseleccionada) {
 
   document.getElementById('nuevo-nombre-es').value = '';
   document.getElementById('nuevo-nombre-en').value = '';
-  document.getElementById('nuevo-pin').value = localStorage.getItem(LS_PIN) || '';
   document.getElementById('form-nuevo-plato-error').hidden = true;
   modal.hidden = false;
   document.getElementById('nuevo-nombre-es').focus();
@@ -233,45 +380,59 @@ function cerrarModalNuevoPlato() {
   document.getElementById('modal-nuevo-plato').hidden = true;
 }
 
+function siguienteId() {
+  const idsLocales = platos.map(p => p.id).filter(id => !isNaN(id));
+  const idsOptimistas = getOptimistas().map(p => p.id).filter(id => !isNaN(id));
+  const todos = [...idsLocales, ...idsOptimistas];
+  return todos.length ? Math.max(...todos) + 1 : 1;
+}
+
 async function enviarNuevoPlato(ev) {
   ev.preventDefault();
 
   const errorBox = document.getElementById('form-nuevo-plato-error');
   errorBox.hidden = true;
 
-  if (modoDemo) {
-    errorBox.textContent = 'Estás en modo demo: conecta primero tu Google Sheet (SHEET_WEBAPP_URL) para poder guardar platos nuevos.';
+  if (!CONFIG.WEBAPP_URL || CONFIG.WEBAPP_URL.includes('PEGA_AQUI')) {
+    errorBox.textContent = 'Falta configurar WEBAPP_URL en js/config.js con la URL del Apps Script.';
     errorBox.hidden = false;
     return;
   }
 
   const categoria = document.getElementById('nuevo-categoria').value;
   const nombreEs = document.getElementById('nuevo-nombre-es').value.trim();
-  const nombreEn = document.getElementById('nuevo-nombre-en').value.trim();
-  const pin = document.getElementById('nuevo-pin').value.trim();
+  let nombreEn = document.getElementById('nuevo-nombre-en').value.trim();
 
   const btnGuardar = document.getElementById('btn-guardar-nuevo');
   btnGuardar.disabled = true;
-  btnGuardar.textContent = nombreEn ? 'Guardando...' : 'Traduciendo y guardando...';
 
   try {
-    const res = await fetch(CONFIG.SHEET_WEBAPP_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ action: 'add', categoria, nombre_es: nombreEs, nombre_en: nombreEn, pin })
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Error al guardar');
+    if (!nombreEn) {
+      btnGuardar.textContent = 'Traduciendo...';
+      nombreEn = await traducirConGemini(nombreEs, categoria);
+    }
 
-    platos.push({ ...data.plato, id: Number(data.plato.id) });
-    seleccion.add(Number(data.plato.id));
+    btnGuardar.textContent = 'Guardando...';
+    const nuevoPlato = { id: siguienteId(), categoria, nombre_es: nombreEs, nombre_en: nombreEn };
+
+    // Modo "no-cors": la petición se envía pero no podemos leer si tuvo éxito.
+    // Por eso guardamos el plato como "optimista" y lo añadimos ya a la vista.
+    fetch(CONFIG.WEBAPP_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'add', ...nuevoPlato })
+    }).catch(() => { /* no-cors: los errores de red reales igualmente no se pueden leer */ });
+
+    anadirOptimista(nuevoPlato);
+    platos.push(nuevoPlato);
+    seleccion.add(nuevoPlato.id);
     guardarSeleccion(seleccion);
-    if (pin) localStorage.setItem(LS_PIN, pin);
 
     cerrarModalNuevoPlato();
     renderTodo();
   } catch (err) {
-    errorBox.textContent = 'No se pudo guardar: ' + err.message;
+    errorBox.textContent = 'No se pudo añadir el plato: ' + err.message;
     errorBox.hidden = false;
   } finally {
     btnGuardar.disabled = false;
@@ -282,7 +443,7 @@ async function enviarNuevoPlato(ev) {
 // ---------- Inicialización ----------
 
 document.addEventListener('DOMContentLoaded', () => {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => activarTab(btn.dataset.tab));
   });
 
@@ -301,6 +462,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-cancelar-nuevo').addEventListener('click', cerrarModalNuevoPlato);
   document.getElementById('form-nuevo-plato').addEventListener('submit', enviarNuevoPlato);
+
+  document.getElementById('btn-ajustes-traduccion').addEventListener('click', abrirModalAjustes);
+  document.getElementById('btn-cerrar-ajustes').addEventListener('click', cerrarModalAjustes);
+  document.getElementById('form-nueva-clave').addEventListener('submit', ev => {
+    ev.preventDefault();
+    const input = document.getElementById('nueva-clave-input');
+    const valor = input.value.trim();
+    if (valor) { anadirGeminiKey(valor); input.value = ''; renderListaClaves(); }
+  });
 
   cargarPlatos();
 });

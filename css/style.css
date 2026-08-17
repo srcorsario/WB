@@ -39,6 +39,13 @@ h1, h2 { font-family: inherit; }
 .tabs {
   display: flex;
   gap: 0.25rem;
+  align-items: center;
+}
+
+.tab-btn-ajustes {
+  margin-left: auto;
+  font-size: 0.85rem;
+  opacity: 0.85;
 }
 
 .tab-btn {
@@ -270,6 +277,53 @@ main {
   border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.95rem;
+}
+
+.modal-explicacion {
+  font-size: 0.85rem;
+  color: var(--color-text-muted);
+  line-height: 1.4;
+  margin: 0.4rem 0 1rem;
+}
+
+.lista-claves {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.lista-claves-vacia {
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--color-text-muted);
+}
+
+.clave-fila {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  padding: 0.4rem 0.6rem;
+  background: #f4efe4;
+  border-radius: 6px;
+  font-family: monospace;
+  font-size: 0.85rem;
+}
+
+#form-nueva-clave {
+  display: flex;
+  gap: 0.5rem;
+}
+
+#form-nueva-clave input {
+  flex: 1;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.9rem;
 }
 
 .modal-botones {

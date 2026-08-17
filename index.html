@@ -13,12 +13,11 @@
   <nav class="tabs">
     <button class="tab-btn active" data-tab="platos">Platos</button>
     <button class="tab-btn" data-tab="cartelitos">Cartelitos <span id="contador-seleccion" class="badge">0</span></button>
+    <button id="btn-ajustes-traduccion" class="tab-btn tab-btn-ajustes" title="Configurar claves de traducción">⚙️ Traducción</button>
   </nav>
 </header>
 
-<div id="aviso-config" class="aviso no-print" hidden>
-  ⚠️ Falta configurar la URL de Apps Script en <code>js/config.js</code> (variable <code>SHEET_WEBAPP_URL</code>).
-</div>
+<div id="aviso-config" class="aviso no-print" hidden></div>
 
 <main>
 
@@ -84,9 +83,6 @@
       <label>Nombre en inglés <span class="opcional">(opcional, se traduce automáticamente si lo dejas vacío)</span>
         <input type="text" id="nuevo-nombre-en" placeholder="Ej. Tomato salad">
       </label>
-      <label>PIN
-        <input type="password" id="nuevo-pin" inputmode="numeric" placeholder="PIN de administración">
-      </label>
       <div id="form-nuevo-plato-error" class="form-error" hidden></div>
       <div class="modal-botones">
         <button type="button" id="btn-cancelar-nuevo" class="btn secundario">Cancelar</button>
@@ -96,6 +92,26 @@
   </div>
 </div>
 
+<!-- ================= MODAL: ajustes de traducción (claves Gemini) ================= -->
+<div id="modal-ajustes" class="modal no-print" hidden>
+  <div class="modal-contenido">
+    <h2>Traducción automática</h2>
+    <p class="modal-explicacion">
+      Las claves de la API de Gemini se guardan solo en este navegador (no se suben a GitHub).
+      Puedes añadir varias: si una se queda sin cuota, la web prueba con la siguiente automáticamente.
+    </p>
+    <div id="lista-claves" class="lista-claves"></div>
+    <form id="form-nueva-clave">
+      <input type="text" id="nueva-clave-input" placeholder="Pega aquí una clave de la API de Gemini">
+      <button type="submit" class="btn principal pequeno">+ Añadir</button>
+    </form>
+    <div class="modal-botones">
+      <button type="button" id="btn-cerrar-ajustes" class="btn secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 </body>

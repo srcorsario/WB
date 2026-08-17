@@ -87,7 +87,11 @@
         <input type="text" id="nuevo-nombre-es" required placeholder="Ej. Ensalada de tomate">
       </label>
       <label>Nombre en inglés <span class="opcional">(opcional, se traduce automáticamente si lo dejas vacío)</span>
-        <input type="text" id="nuevo-nombre-en" placeholder="Ej. Tomato salad">
+        <div class="campo-con-boton">
+          <input type="text" id="nuevo-nombre-en" placeholder="Ej. Tomato salad">
+          <button type="button" id="btn-ver-opciones-traduccion" class="btn secundario pequeno">🌐 Ver opciones</button>
+        </div>
+        <div id="opciones-traduccion" class="opciones-traduccion" hidden></div>
       </label>
       <div id="form-nuevo-plato-error" class="form-error" hidden></div>
       <div class="modal-botones">

@@ -347,18 +347,58 @@ function activarTab(nombre) {
 }
 
 // ---------- Traducción con Gemini (desde el navegador) ----------
+//
+// En vez de rellenar el inglés a ciegas con una única traducción, se le pide
+// a Gemini varias alternativas con estilos distintos (literal, breve tipo
+// carta, formal) y se muestran como opciones para que el usuario elija la
+// que más le convenza (o edite el campo a mano).
 
-async function traducirConGemini(nombreEs, categoria) {
+function escapeHtml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function parseOpcionesTraduccion(texto) {
+  if (!texto) return [];
+  // Gemini a veces envuelve el JSON en un bloque de código ```json ... ```
+  const limpio = texto.replace(/```json|```/g, '').trim();
+  const match = limpio.match(/\[[\s\S]*\]/);
+  if (!match) return [];
+  try {
+    const arr = JSON.parse(match[0]);
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .filter(o => o && typeof o.texto === 'string' && o.texto.trim())
+      .map(o => ({
+        estilo: (o.estilo || '').toString().trim(),
+        texto: o.texto.trim().replace(/^"|"$/g, '').replace(/\.$/, '')
+      }));
+  } catch (e) {
+    return [];
+  }
+}
+
+async function traducirVariantesConGemini(nombreEs, categoria) {
   const keys = getGeminiKeys();
   if (keys.length === 0) {
     throw new Error('No hay ninguna clave de Gemini configurada. Pulsa "⚙️ Traducción" para añadir una.');
   }
 
-  const prompt = 'Traduce al inglés el siguiente nombre de un plato de buffet/restaurante ' +
-    'para un cartelito de menú. Categoría: "' + categoria + '". ' +
+  const prompt = 'Traduce al inglés el siguiente nombre de un plato de buffet/restaurante, ' +
+    'pensado para un cartelito de menú. Categoría: "' + categoria + '". ' +
     'Nombre en español: "' + nombreEs + '". ' +
-    'Responde ÚNICAMENTE con el nombre traducido en inglés, tal y como se escribiría ' +
-    'en un cartelito (sin comillas, sin punto final, sin explicaciones).';
+    'Dame EXACTAMENTE 3 alternativas de traducción, con estilos distintos: ' +
+    '1) literal y neutra, tal cual describe el plato; ' +
+    '2) breve, como se vería en la carta de un restaurante; ' +
+    '3) más formal o gastronómica. ' +
+    'Evita traducciones "creativas" que cambien el nombre del plato por otro plato distinto ' +
+    '(por ejemplo, no traduzcas un jalapeño relleno como "jalapeño poppers"; describe lo que es). ' +
+    'Responde ÚNICAMENTE con un array JSON válido, sin texto adicional ni bloques de código, ' +
+    'con este formato exacto: ' +
+    '[{"estilo":"Literal","texto":"..."},{"estilo":"Breve","texto":"..."},{"estilo":"Formal","texto":"..."}]';
 
   let ultimoError = '';
 
@@ -377,14 +417,84 @@ async function traducirConGemini(nombreEs, categoria) {
       }
 
       const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (texto) return texto.trim().replace(/^"|"$/g, '');
-      ultimoError = 'Respuesta de Gemini sin texto.';
+      const opciones = parseOpcionesTraduccion(texto);
+      if (opciones.length) return opciones;
+      ultimoError = 'Respuesta de Gemini sin opciones válidas.';
     } catch (err) {
       ultimoError = err.message;
     }
   }
 
   throw new Error(ultimoError || 'No se pudo traducir.');
+}
+
+function renderOpcionesTraduccion(opciones) {
+  const cont = document.getElementById('opciones-traduccion');
+  cont.innerHTML = '';
+
+  if (!opciones.length) {
+    cont.hidden = true;
+    return;
+  }
+
+  const titulo = document.createElement('div');
+  titulo.className = 'opciones-traduccion-titulo';
+  titulo.textContent = 'Elige una opción (o edita el campo a mano):';
+  cont.appendChild(titulo);
+
+  opciones.forEach(op => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'opcion-traduccion';
+    chip.innerHTML = `<strong>${escapeHtml(op.texto)}</strong>` +
+      (op.estilo ? `<span>${escapeHtml(op.estilo)}</span>` : '');
+    chip.addEventListener('click', () => {
+      document.getElementById('nuevo-nombre-en').value = op.texto;
+      cont.querySelectorAll('.opcion-traduccion').forEach(c => c.classList.remove('seleccionada'));
+      chip.classList.add('seleccionada');
+    });
+    cont.appendChild(chip);
+  });
+
+  cont.hidden = false;
+}
+
+function ocultarOpcionesTraduccion() {
+  const cont = document.getElementById('opciones-traduccion');
+  cont.hidden = true;
+  cont.innerHTML = '';
+}
+
+async function mostrarOpcionesTraduccionClick() {
+  const errorBox = document.getElementById('form-nuevo-plato-error');
+  errorBox.hidden = true;
+
+  const nombreEs = document.getElementById('nuevo-nombre-es').value.trim();
+  const categoria = document.getElementById('nuevo-categoria').value;
+
+  if (!nombreEs) {
+    errorBox.textContent = 'Escribe primero el nombre del plato en español.';
+    errorBox.hidden = false;
+    document.getElementById('nuevo-nombre-es').focus();
+    return;
+  }
+
+  const btn = document.getElementById('btn-ver-opciones-traduccion');
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Traduciendo...';
+  ocultarOpcionesTraduccion();
+
+  try {
+    const opciones = await traducirVariantesConGemini(nombreEs, categoria);
+    renderOpcionesTraduccion(opciones);
+  } catch (err) {
+    errorBox.textContent = 'No se pudieron generar opciones de traducción: ' + err.message;
+    errorBox.hidden = false;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
 }
 
 // ---------- Modal: ajustes de traducción ----------
@@ -445,6 +555,7 @@ function abrirModalNuevoPlato(categoriaPreseleccionada) {
   document.getElementById('nuevo-nombre-es').value = '';
   document.getElementById('nuevo-nombre-en').value = '';
   document.getElementById('form-nuevo-plato-error').hidden = true;
+  ocultarOpcionesTraduccion();
   document.getElementById('modal-nuevo-plato').hidden = false;
   document.getElementById('nuevo-nombre-es').focus();
 }
@@ -458,12 +569,14 @@ function abrirModalEditarPlato(plato) {
   document.getElementById('nuevo-nombre-es').value = plato.nombre_es;
   document.getElementById('nuevo-nombre-en').value = plato.nombre_en || '';
   document.getElementById('form-nuevo-plato-error').hidden = true;
+  ocultarOpcionesTraduccion();
   document.getElementById('modal-nuevo-plato').hidden = false;
   document.getElementById('nuevo-nombre-es').focus();
 }
 
 function cerrarModalNuevoPlato() {
   document.getElementById('modal-nuevo-plato').hidden = true;
+  ocultarOpcionesTraduccion();
   platoEditandoId = null;
 }
 
@@ -514,7 +627,11 @@ async function enviarNuevoPlato(ev) {
   try {
     if (!nombreEn) {
       btnGuardar.textContent = 'Traduciendo...';
-      nombreEn = await traducirConGemini(nombreEs, categoria);
+      const opciones = await traducirVariantesConGemini(nombreEs, categoria);
+      if (!opciones.length) throw new Error('No se pudo traducir.');
+      // Si el usuario no ha elegido ninguna opción a mano, se usa la primera
+      // (la traducción literal/neutra) como valor por defecto.
+      nombreEn = opciones[0].texto;
     }
 
     btnGuardar.textContent = 'Guardando...';
@@ -581,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-cancelar-nuevo').addEventListener('click', cerrarModalNuevoPlato);
   document.getElementById('form-nuevo-plato').addEventListener('submit', enviarNuevoPlato);
+  document.getElementById('btn-ver-opciones-traduccion').addEventListener('click', mostrarOpcionesTraduccionClick);
 
   document.getElementById('btn-ajustes-traduccion').addEventListener('click', abrirModalAjustes);
   document.getElementById('btn-cerrar-ajustes').addEventListener('click', cerrarModalAjustes);

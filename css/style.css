@@ -87,7 +87,7 @@ h1, h2 { font-family: inherit; }
 /* ---------- Layout ---------- */
 
 main {
-  max-width: 980px;
+  max-width: 1500px;
   margin: 0 auto;
   padding: 1.25rem 1.5rem 4rem;
 }
@@ -184,6 +184,9 @@ main {
 
 .categoria-lista {
   padding: 0.4rem 1.1rem 0.9rem;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  column-gap: 1.5rem;
 }
 
 .plato-item {
@@ -193,9 +196,8 @@ main {
   gap: 0.7rem;
   padding: 0.55rem 0.2rem;
   border-bottom: 1px dashed var(--color-border);
+  min-width: 0;
 }
-
-.plato-item:last-child { border-bottom: none; }
 
 .plato-item-principal {
   display: flex;
@@ -422,6 +424,7 @@ main {
 
 @media (max-width: 640px) {
   .cartelitos-grid { grid-template-columns: 1fr; }
+  .categoria-lista { grid-template-columns: 1fr; }
 }
 
 /* ---------- Impresión ---------- */

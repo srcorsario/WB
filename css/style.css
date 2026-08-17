@@ -158,6 +158,15 @@ main {
 
 /* ---------- Categorías / lista de platos ---------- */
 
+/* Las categorías se reparten en 2 columnas (izquierda/derecha) sin partir
+   ninguna por la mitad: el navegador va rellenando la columna izquierda en
+   el orden de CONFIG.CATEGORIAS y pasa el resto a la derecha, intentando
+   que ambas columnas terminen con una altura similar. */
+#categorias-container {
+  column-count: 2;
+  column-gap: 1.5rem;
+}
+
 .categoria-bloque {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -165,6 +174,8 @@ main {
   box-shadow: var(--shadow);
   margin-bottom: 1rem;
   overflow: hidden;
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
 }
 
 .categoria-cabecera {
@@ -184,9 +195,6 @@ main {
 
 .categoria-lista {
   padding: 0.4rem 1.1rem 0.9rem;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  column-gap: 1.5rem;
 }
 
 .plato-item {
@@ -424,7 +432,10 @@ main {
 
 @media (max-width: 640px) {
   .cartelitos-grid { grid-template-columns: 1fr; }
-  .categoria-lista { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 760px) {
+  #categorias-container { column-count: 1; }
 }
 
 /* ---------- Impresión ---------- */

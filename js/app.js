@@ -147,12 +147,20 @@ function filasAPlatos(filas) {
 
   return filas.slice(1)
     .filter(fila => fila.length > 1 && String(fila[idxCategoria] || '').trim() !== '')
-    .map((fila, i) => ({
-      id: idxId !== -1 && fila[idxId] ? Number(fila[idxId]) : i + 1,
-      categoria: String(fila[idxCategoria] || '').trim(),
-      nombre_es: String(fila[idxEs] || '').trim(),
-      nombre_en: idxEn !== -1 ? String(fila[idxEn] || '').trim() : ''
-    }))
+    .map((fila, i) => {
+      // Si la columna ID falta o no es un número (p.ej. una fila añadida a
+      // mano en la hoja sin rellenarla), se usa i+1 como id de repuesto.
+      // Importante no dejar pasar un NaN: como los platos se indexan por id
+      // en un Map (altas/ediciones/borrados pendientes), varias filas con
+      // id NaN colisionarían entre sí y solo sobreviviría la última.
+      const idBruto = idxId !== -1 ? Number(fila[idxId]) : NaN;
+      return {
+        id: Number.isFinite(idBruto) ? idBruto : i + 1,
+        categoria: String(fila[idxCategoria] || '').trim(),
+        nombre_es: String(fila[idxEs] || '').trim(),
+        nombre_en: idxEn !== -1 ? String(fila[idxEn] || '').trim() : ''
+      };
+    })
     .filter(p => p.nombre_es !== '');
 }
 

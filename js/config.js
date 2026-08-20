@@ -25,6 +25,7 @@ const CONFIG = {
   CATEGORIAS: [
     'Ensaladas',
     'Entrantes',
+    'Sopas y Cremas',
     'Verduras',
     'Pescados',
     'Carnes',

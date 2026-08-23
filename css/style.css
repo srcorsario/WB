@@ -263,11 +263,14 @@ main {
 }
 
 .plato-es {
+  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 14pt;
   font-weight: 600;
 }
 
 .plato-en {
-  font-size: 0.82rem;
+  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 12pt;
   color: var(--color-text-muted);
 }
 
@@ -526,15 +529,17 @@ main {
 }
 
 .cartelito-es {
+  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
   font-weight: 800;
   text-transform: uppercase;
-  font-size: 1.15rem;
+  font-size: 14pt;
   letter-spacing: 0.01em;
   line-height: 1.3;
 }
 
 .cartelito-en {
-  font-size: 1rem;
+  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-size: 12pt;
   color: var(--color-text-muted);
   line-height: 1.3;
 }
@@ -556,7 +561,14 @@ main {
 @media print {
   body { background: #fff; }
   .no-print { display: none !important; }
-  main { max-width: none; padding: 0; margin: 0; }
+  /* padding-right: deja un pequeño margen de respiro entre el borde derecho
+     de la rejilla y el borde imprimible de la página. Si la rejilla ocupa
+     el 100% exacto del área imprimible, ese último borde cae justo en el
+     límite y algunos navegadores (Chrome sobre todo) lo recortan por
+     redondeo al rasterizar la página, dejando los cartelitos de la columna
+     derecha sin cerrar. Con este margen el borde siempre queda dentro del
+     área visible. */
+  main { max-width: none; padding: 0 2mm 0 0; margin: 0; }
   .tab-panel { display: none !important; }
   #tab-cartelitos { display: block !important; }
 
@@ -605,7 +617,7 @@ main {
     page-break-inside: avoid;
   }
 
-  .cartelito-es { font-size: 15pt; }
+  .cartelito-es { font-size: 14pt; }
   .cartelito-en { font-size: 12pt; color: #333; }
 
   @page {

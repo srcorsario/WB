@@ -469,10 +469,10 @@ main {
 /* La selección se pinta en "hojas" de 8 cartelitos (2 columnas x 4 filas)
    — una por cada .cartelitos-grid.pagina-cartelitos — para que la vista en
    pantalla sea un reflejo fiel de cómo va a salir en papel A4. Cada hoja se
-   envuelve en .pagina-wrapper con la proporción real de un A4 vertical
-   (210x297mm) para que en pantalla se vea como una página, no como una
-   tira ancha estirada horizontalmente. Con varias hojas y sitio de sobra,
-   se colocan una junto a otra (como una vista previa de impresión). */
+   envuelve en .pagina-wrapper. Con varias hojas y sitio de sobra, se
+   colocan una junto a otra (como una vista previa de impresión); si no
+   caben, se desplazan horizontalmente en vez de encogerse (igual que al
+   ver un PDF real en el móvil), para no deformar ni recortar el texto. */
 
 #cartelitos-paginas {
   display: flex;
@@ -483,13 +483,18 @@ main {
 }
 
 .pagina-wrapper {
-  /* Ancho fijo (no "width:100%"): si la hoja se encogiera para caber en
-     una pantalla estrecha, las 4 filas también se encogerían y el texto
-     de los cartelitos dejaría de caber. Mejor mantener siempre un tamaño
-     en el que el texto quepa bien y, si no cabe en la pantalla, dejar que
-     se desplace horizontalmente (igual que al ver un PDF real en el
-     móvil) en vez de deformar o recortar los cartelitos. */
-  width: 480px;
+  /* Ancho real del área imprimible de una hoja A4 vertical: 21cm de ancho
+     de hoja menos 2 x 1.2cm de margen de impresión (ver @page más abajo).
+     Es imprescindible usar aquí una medida física (mm) igual a la que se
+     usa al imprimir, porque el tamaño de letra de los cartelitos también
+     está en una medida física (pt, ver .cartelito-es/.cartelito-en más
+     abajo): así el texto ocupa siempre la misma proporción del ancho
+     disponible en pantalla que en el PDF, y salta de línea exactamente
+     igual en los dos sitios. Un ancho puesto "a ojo" en píxeles (como
+     tenía antes) hace que el texto parezca más grande de lo que es en
+     realidad y se corte en dos líneas en la vista previa aunque en el PDF
+     quepa de sobra en una sola. */
+  width: 186mm;
   flex-shrink: 0;
 }
 
@@ -505,8 +510,12 @@ main {
 .cartelitos-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(4, 1fr);
-  aspect-ratio: 210 / 297; /* proporción real de una hoja A4 vertical */
+  /* Filas de altura fija (6.2cm), igual que en impresión (ver @media
+     print), en vez de repartir el alto del contenedor en 4 partes iguales:
+     así cada cartelito mide físicamente lo mismo en pantalla que en el
+     PDF, en lugar de una aproximación. 4 filas de 6.2cm = 24.8cm, dentro de
+     los 27.3cm de alto imprimible en A4 (29.7cm - 2x1.2cm de margen). */
+  grid-auto-rows: 6.2cm;
   width: 100%;
   gap: 0;
   background: var(--color-surface);
@@ -580,31 +589,23 @@ main {
   .tab-panel { display: none !important; }
   #tab-cartelitos { display: block !important; }
 
-  /* La previsualización en pantalla usa flexbox + un ancho máximo por hoja
-     para que se vea con proporción de A4 vertical; en la hoja impresa de
-     verdad eso hay que anularlo para que cada hoja ocupe toda la página. */
+  /* La previsualización en pantalla usa flexbox para colocar varias hojas
+     una junto a otra; en la hoja impresa de verdad cada una ocupa toda la
+     página. El ancho de .pagina-wrapper y el grid-auto-rows de
+     .cartelitos-grid NO se redefinen aquí: son los mismos valores físicos
+     (mm/cm) que se usan en pantalla (ver más arriba), así que ya dan el
+     tamaño correcto sin necesidad de repetirlos — y sin riesgo de que
+     pantalla e impresión se desincronicen si se cambian en el futuro. */
   #cartelitos-paginas {
     display: block;
   }
 
   .pagina-wrapper {
-    max-width: none;
     width: 100%;
   }
 
   .cartelitos-grid {
-    border: none;
-    border-radius: 0;
     box-shadow: none;
-    grid-template-columns: repeat(2, 1fr);
-    /* 4 filas de 6.2cm cada una = 24.8cm, dentro de los 27.3cm de alto
-       imprimible en A4 (29.7cm - 2x1.2cm de margen): siempre caben las 4
-       filas (8 cartelitos) de una hoja sin que ninguna se corte ni se pase
-       a la hoja siguiente por medio cartelito. */
-    grid-template-rows: none;
-    grid-auto-rows: 6.2cm;
-    aspect-ratio: auto;
-    width: auto;
   }
 
   /* Cada hoja de 8 cartelitos empieza en su propia página impresa... */

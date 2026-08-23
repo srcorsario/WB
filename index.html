@@ -16,6 +16,7 @@
   <nav class="tabs">
     <button class="tab-btn active" data-tab="platos">Platos</button>
     <button class="tab-btn" data-tab="cartelitos">Cartelitos <span id="contador-seleccion" class="badge">0</span></button>
+    <button id="btn-ajustes-letra" class="tab-btn tab-btn-ajustes" title="Configurar tipo y tamaño de letra">🔤 Letra</button>
     <button id="btn-ajustes-traduccion" class="tab-btn tab-btn-ajustes" title="Configurar claves de traducción">⚙️ Traducción</button>
   </nav>
 </header>
@@ -102,6 +103,45 @@
         <button type="submit" id="btn-guardar-nuevo" class="btn principal">Guardar plato</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ================= MODAL: tipo y tamaño de letra ================= -->
+<div id="modal-ajustes-letra" class="modal no-print" hidden>
+  <div class="modal-contenido">
+    <h2>Tipo y tamaño de letra</h2>
+    <p class="modal-explicacion">
+      Se aplica al nombre de los platos, tanto en la lista de "Platos" como en los cartelitos para imprimir.
+      Los cambios se ven al momento y se guardan solo en este navegador.
+    </p>
+    <form id="form-ajustes-letra">
+      <div class="ajuste-idioma">
+        <h3>Español</h3>
+        <div class="ajuste-fila">
+          <label>Tipo de letra
+            <select id="fuente-es"></select>
+          </label>
+          <label class="ajuste-tamano">Tamaño (pt)
+            <input type="number" id="tamano-es" min="6" max="72" step="0.5">
+          </label>
+        </div>
+      </div>
+      <div class="ajuste-idioma">
+        <h3>Inglés</h3>
+        <div class="ajuste-fila">
+          <label>Tipo de letra
+            <select id="fuente-en"></select>
+          </label>
+          <label class="ajuste-tamano">Tamaño (pt)
+            <input type="number" id="tamano-en" min="6" max="72" step="0.5">
+          </label>
+        </div>
+      </div>
+    </form>
+    <div class="modal-botones">
+      <button type="button" id="btn-restablecer-letra" class="btn secundario">Restablecer</button>
+      <button type="button" id="btn-cerrar-ajustes-letra" class="btn principal">Cerrar</button>
+    </div>
   </div>
 </div>
 

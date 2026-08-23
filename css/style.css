@@ -10,6 +10,18 @@
   --radius: 10px;
   --shadow: 0 1px 3px rgba(43, 38, 32, 0.08);
   font-size: 16px;
+
+  /* Tipo y tamaño de letra del nombre de los platos (lista de "Platos" y
+     cartelitos), uno para español y otro para inglés. Estos son los
+     valores predeterminados; el botón "🔤 Letra" del cabecero deja
+     cambiarlos y los guarda en este navegador sobrescribiendo estas
+     mismas variables (ver aplicarTipografia() en js/app.js), así que
+     cualquier cambio se aplica igual en pantalla que al imprimir sin
+     tener que duplicar reglas en @media print. */
+  --fuente-es: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --tamano-es: 14pt;
+  --fuente-en: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --tamano-en: 12pt;
 }
 
 * { box-sizing: border-box; }
@@ -263,14 +275,14 @@ main {
 }
 
 .plato-es {
-  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 14pt;
+  font-family: var(--fuente-es);
+  font-size: var(--tamano-es);
   font-weight: 600;
 }
 
 .plato-en {
-  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 12pt;
+  font-family: var(--fuente-en);
+  font-size: var(--tamano-en);
   color: var(--color-text-muted);
 }
 
@@ -464,6 +476,55 @@ main {
   font-size: 0.85rem;
 }
 
+/* ---------- Modal ajustes de letra ---------- */
+
+#form-ajustes-letra label {
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.6rem 0 0.25rem;
+}
+
+#form-ajustes-letra input,
+#form-ajustes-letra select {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  background: var(--color-surface);
+}
+
+.ajuste-idioma {
+  padding: 0.5rem 0.7rem 0.7rem;
+  background: #f4efe4;
+  border-radius: 8px;
+  margin-top: 0.7rem;
+}
+
+.ajuste-idioma h3 {
+  margin: 0.5rem 0 0;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.ajuste-fila {
+  display: flex;
+  gap: 0.6rem;
+}
+
+.ajuste-fila label {
+  flex: 1;
+  min-width: 0;
+}
+
+.ajuste-fila label.ajuste-tamano {
+  flex: 0 0 90px;
+}
+
 /* ---------- Cartelitos (pantalla) ---------- */
 
 /* La selección se pinta en "hojas" de 8 cartelitos (2 columnas x 4 filas)
@@ -544,17 +605,17 @@ main {
 }
 
 .cartelito-es {
-  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  font-family: var(--fuente-es);
   font-weight: 800;
   text-transform: uppercase;
-  font-size: 14pt;
+  font-size: var(--tamano-es);
   letter-spacing: 0.01em;
   line-height: 1.3;
 }
 
 .cartelito-en {
-  font-family: "Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif;
-  font-size: 12pt;
+  font-family: var(--fuente-en);
+  font-size: var(--tamano-en);
   /* Mismo gris que en impresión (ver @media print), no el gris-marrón
      tostado que se usa en el resto de la interfaz. */
   color: #333;
@@ -627,8 +688,11 @@ main {
     page-break-inside: avoid;
   }
 
-  .cartelito-es { font-size: 14pt; }
-  .cartelito-en { font-size: 12pt; color: #333; }
+  /* El tipo y tamaño de letra (.cartelito-es / .cartelito-en) no se
+     redefinen aquí: usan las mismas variables --fuente-es/en y
+     --tamano-es/en que en pantalla (ver :root y el botón "🔤 Letra"), así
+     que lo que el usuario elija se imprime tal cual, sin un valor fijo que
+     lo pisara. */
 
   @page {
     size: A4;

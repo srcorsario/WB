@@ -17,6 +17,7 @@ const LS_SELECCION = 'cartelitos-seleccion';
 const LS_GEMINI_KEYS = 'cartelitos-geminiKeys';
 const LS_PENDIENTES = 'cartelitos-pendientes'; // altas y ediciones aún no confirmadas en el CSV
 const LS_BORRADOS = 'cartelitos-borrados';     // bajas aún no confirmadas en el CSV
+const LS_TIPOGRAFIA = 'cartelitos-tipografia';
 const PENDIENTE_TTL_MS = 10 * 60 * 1000; // 10 minutos: tiempo de sobra para que el CSV publicado se actualice
 
 let platos = [];
@@ -68,6 +69,144 @@ function borrarGeminiKey(key) {
 
 function ofuscarClave(k) {
   return k.length > 10 ? `${k.slice(0, 6)}...${k.slice(-4)}` : k;
+}
+
+// ---------- Tipo y tamaño de letra (guardado en el navegador) ----------
+//
+// Un tipo y un tamaño para español y otro distinto para inglés (nombre del
+// plato), tanto en la lista de "Platos" como en los cartelitos. Se aplica
+// escribiendo variables CSS en <html> (--fuente-es/en, --tamano-es/en; ver
+// :root en css/style.css), de las que ya tiran tanto .plato-es/.plato-en
+// como .cartelito-es/.cartelito-en, en pantalla y al imprimir por igual —
+// así no hace falta ninguna lógica aparte para que la impresión coincida
+// con lo elegido.
+
+// "google" es el nombre tal cual lo usa la URL de Google Fonts; null si es
+// una fuente ya instalada en el sistema del usuario (no hace falta cargar
+// nada). "pila" es la lista de sustitutas por si la fuente no cargase.
+const FUENTES_DISPONIBLES = [
+  { valor: 'Montserrat', etiqueta: 'Montserrat', pila: '"Montserrat", "Segoe UI", "Helvetica Neue", Arial, sans-serif', google: 'Montserrat' },
+  { valor: 'Arial', etiqueta: 'Arial', pila: 'Arial, "Helvetica Neue", Helvetica, sans-serif', google: null },
+  { valor: 'Georgia', etiqueta: 'Georgia', pila: 'Georgia, "Times New Roman", Times, serif', google: null },
+  { valor: 'Times New Roman', etiqueta: 'Times New Roman', pila: '"Times New Roman", Times, Georgia, serif', google: null },
+  { valor: 'Roboto', etiqueta: 'Roboto', pila: '"Roboto", Arial, sans-serif', google: 'Roboto' },
+  { valor: 'Poppins', etiqueta: 'Poppins', pila: '"Poppins", Arial, sans-serif', google: 'Poppins' },
+  { valor: 'Lato', etiqueta: 'Lato', pila: '"Lato", Arial, sans-serif', google: 'Lato' },
+  { valor: 'Playfair Display', etiqueta: 'Playfair Display', pila: '"Playfair Display", Georgia, serif', google: 'Playfair+Display' },
+  { valor: 'Merriweather', etiqueta: 'Merriweather', pila: '"Merriweather", Georgia, serif', google: 'Merriweather' },
+  { valor: 'Courier New', etiqueta: 'Courier New', pila: '"Courier New", Courier, monospace', google: null }
+];
+
+const TIPOGRAFIA_PREDETERMINADA = {
+  es: { fuente: 'Montserrat', tamano: 14 },
+  en: { fuente: 'Montserrat', tamano: 12 }
+};
+
+function copiaTipografiaPredeterminada() {
+  return JSON.parse(JSON.stringify(TIPOGRAFIA_PREDETERMINADA));
+}
+
+function buscarFuente(valor) {
+  return FUENTES_DISPONIBLES.find(f => f.valor === valor) || FUENTES_DISPONIBLES[0];
+}
+
+function getTipografia() {
+  const predet = copiaTipografiaPredeterminada();
+  try {
+    const raw = localStorage.getItem(LS_TIPOGRAFIA);
+    const guardada = raw ? JSON.parse(raw) : {};
+    return {
+      es: { ...predet.es, ...(guardada.es || {}) },
+      en: { ...predet.en, ...(guardada.en || {}) }
+    };
+  } catch (e) {
+    return predet;
+  }
+}
+
+function guardarTipografia(tipografia) {
+  localStorage.setItem(LS_TIPOGRAFIA, JSON.stringify(tipografia));
+}
+
+// Montserrat ya está cargada desde <link> en index.html.
+const fuentesGoogleCargadas = new Set(['Montserrat']);
+
+function asegurarFuenteGoogleCargada(nombreGoogle) {
+  if (!nombreGoogle || fuentesGoogleCargadas.has(nombreGoogle)) return;
+  fuentesGoogleCargadas.add(nombreGoogle);
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = `https://fonts.googleapis.com/css2?family=${nombreGoogle}:ital,wght@0,400;0,600;0,700;0,800;0,900;1,400&display=swap`;
+  document.head.appendChild(link);
+}
+
+function aplicarTipografia(tipografia) {
+  const es = buscarFuente(tipografia.es.fuente);
+  const en = buscarFuente(tipografia.en.fuente);
+  asegurarFuenteGoogleCargada(es.google);
+  asegurarFuenteGoogleCargada(en.google);
+
+  const raiz = document.documentElement.style;
+  raiz.setProperty('--fuente-es', es.pila);
+  raiz.setProperty('--tamano-es', tipografia.es.tamano + 'pt');
+  raiz.setProperty('--fuente-en', en.pila);
+  raiz.setProperty('--tamano-en', tipografia.en.tamano + 'pt');
+}
+
+function llenarSelectFuentes(select, valorSeleccionado) {
+  select.innerHTML = '';
+  FUENTES_DISPONIBLES.forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.valor;
+    opt.textContent = f.etiqueta;
+    select.appendChild(opt);
+  });
+  select.value = valorSeleccionado;
+}
+
+function rellenarFormularioLetra(tipografia) {
+  llenarSelectFuentes(document.getElementById('fuente-es'), tipografia.es.fuente);
+  document.getElementById('tamano-es').value = tipografia.es.tamano;
+  llenarSelectFuentes(document.getElementById('fuente-en'), tipografia.en.fuente);
+  document.getElementById('tamano-en').value = tipografia.en.tamano;
+}
+
+// Se llama en cada cambio del formulario para que la vista previa se
+// actualice al momento, igual que al elegir una opción de traducción.
+function leerYAplicarFormularioLetra() {
+  const predet = copiaTipografiaPredeterminada();
+  const tamEs = parseFloat(document.getElementById('tamano-es').value);
+  const tamEn = parseFloat(document.getElementById('tamano-en').value);
+
+  const tipografia = {
+    es: {
+      fuente: document.getElementById('fuente-es').value,
+      tamano: Number.isFinite(tamEs) && tamEs > 0 ? tamEs : predet.es.tamano
+    },
+    en: {
+      fuente: document.getElementById('fuente-en').value,
+      tamano: Number.isFinite(tamEn) && tamEn > 0 ? tamEn : predet.en.tamano
+    }
+  };
+
+  guardarTipografia(tipografia);
+  aplicarTipografia(tipografia);
+}
+
+function abrirModalLetra() {
+  rellenarFormularioLetra(getTipografia());
+  document.getElementById('modal-ajustes-letra').hidden = false;
+}
+
+function cerrarModalLetra() {
+  document.getElementById('modal-ajustes-letra').hidden = true;
+}
+
+function restablecerLetra() {
+  const predet = copiaTipografiaPredeterminada();
+  guardarTipografia(predet);
+  aplicarTipografia(predet);
+  rellenarFormularioLetra(predet);
 }
 
 // ---------- Cambios "optimistas" (altas/ediciones/bajas locales mientras el CSV se actualiza) ----------
@@ -679,6 +818,8 @@ function borrarPlato(plato) {
 // ---------- Inicialización ----------
 
 document.addEventListener('DOMContentLoaded', () => {
+  aplicarTipografia(getTipografia());
+
   document.querySelectorAll('.tab-btn[data-tab]').forEach(btn => {
     btn.addEventListener('click', () => activarTab(btn.dataset.tab));
   });
@@ -699,6 +840,13 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-cancelar-nuevo').addEventListener('click', cerrarModalNuevoPlato);
   document.getElementById('form-nuevo-plato').addEventListener('submit', enviarNuevoPlato);
   document.getElementById('btn-ver-opciones-traduccion').addEventListener('click', mostrarOpcionesTraduccionClick);
+
+  document.getElementById('btn-ajustes-letra').addEventListener('click', abrirModalLetra);
+  document.getElementById('btn-cerrar-ajustes-letra').addEventListener('click', cerrarModalLetra);
+  document.getElementById('btn-restablecer-letra').addEventListener('click', restablecerLetra);
+  ['fuente-es', 'tamano-es', 'fuente-en', 'tamano-en'].forEach(id => {
+    document.getElementById(id).addEventListener('input', leerYAplicarFormularioLetra);
+  });
 
   document.getElementById('btn-ajustes-traduccion').addEventListener('click', abrirModalAjustes);
   document.getElementById('btn-cerrar-ajustes').addEventListener('click', cerrarModalAjustes);

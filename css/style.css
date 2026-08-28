@@ -525,6 +525,40 @@ main {
   flex: 0 0 90px;
 }
 
+.modal-explicacion-formato {
+  margin: 0.3rem 0 0.5rem;
+  font-size: 0.82rem;
+}
+
+.ajuste-formato-texto {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.opcion-radio {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.opcion-radio input {
+  flex: 0 0 auto;
+  margin: 0.2rem 0 0;
+}
+
+.opcion-radio em {
+  font-style: normal;
+  color: var(--color-text-muted);
+  font-size: 0.82rem;
+}
+
 /* ---------- Cartelitos (pantalla) ---------- */
 
 /* La selección se pinta en "hojas" de 8 cartelitos (2 columnas x 4 filas)

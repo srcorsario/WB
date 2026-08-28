@@ -18,6 +18,7 @@ const LS_GEMINI_KEYS = 'cartelitos-geminiKeys';
 const LS_PENDIENTES = 'cartelitos-pendientes'; // altas y ediciones aún no confirmadas en el CSV
 const LS_BORRADOS = 'cartelitos-borrados';     // bajas aún no confirmadas en el CSV
 const LS_TIPOGRAFIA = 'cartelitos-tipografia';
+const LS_FORMATO_TEXTO = 'cartelitos-formatoTexto';
 const PENDIENTE_TTL_MS = 10 * 60 * 1000; // 10 minutos: tiempo de sobra para que el CSV publicado se actualice
 
 let platos = [];
@@ -195,6 +196,7 @@ function leerYAplicarFormularioLetra() {
 
 function abrirModalLetra() {
   rellenarFormularioLetra(getTipografia());
+  rellenarFormatoTexto(getFormatoTexto());
   document.getElementById('modal-ajustes-letra').hidden = false;
 }
 
@@ -207,6 +209,86 @@ function restablecerLetra() {
   guardarTipografia(predet);
   aplicarTipografia(predet);
   rellenarFormularioLetra(predet);
+
+  guardarFormatoTexto(FORMATO_TEXTO_PREDETERMINADO);
+  rellenarFormatoTexto(FORMATO_TEXTO_PREDETERMINADO);
+  renderCartelitos();
+}
+
+// ---------- Formato del texto al imprimir (mayúsculas / capitalizado) ----------
+//
+// El nombre del plato se guarda en la hoja tal cual lo escribe el usuario
+// (p.ej. "Lomo a la Plancha" o "LOMO A LA PLANCHA", da igual), pero a la
+// hora de pintar los cartelitos para imprimir se homogeniza según esta
+// opción, para que todos los cartelitos salgan con el mismo estilo aunque
+// los platos se hayan escrito de formas distintas. Vale tanto para español
+// como para inglés. No afecta a la lista de "Platos" (ahí se ve el texto
+// real tal cual está guardado, para poder editarlo con comodidad).
+
+const FORMATO_TEXTO_PREDETERMINADO = 'mayusculas'; // por defecto: todo en mayúsculas
+
+// Palabras que se dejan en minúscula al "Capitalizar" (artículos,
+// preposiciones y conjunciones cortas, en español e inglés), salvo que sean
+// la primera o la última palabra del nombre, que siempre se capitalizan.
+const PALABRAS_MINUSCULAS_CAPITALIZADO = new Set([
+  // Español
+  'a', 'al', 'ante', 'con', 'contra', 'de', 'del', 'desde', 'en', 'entre',
+  'hacia', 'hasta', 'para', 'por', 'segun', 'según', 'sin', 'sobre', 'tras',
+  'y', 'o', 'u', 'e', 'la', 'las', 'el', 'los', 'un', 'una', 'unos', 'unas',
+  'que', 'lo',
+  // Inglés
+  'an', 'the', 'and', 'or', 'but', 'of', 'in', 'on', 'at', 'to', 'for',
+  'with', 'by', 'from', 'as', 'nor', 'so', 'yet', 'up'
+]);
+
+// Convierte p.ej. "LOMO A LA PLANCHA" o "lomo a la plancha" en
+// "Lomo a la Plancha" (nunca "Lomo A La Plancha"): primera letra en
+// mayúscula en cada palabra "importante", y en minúscula en los artículos y
+// preposiciones cortas (excepto si son la primera o la última palabra).
+function capitalizarTexto(texto) {
+  const palabras = texto.trim().toLowerCase().split(/\s+/).filter(Boolean);
+  return palabras
+    .map((palabra, i) => {
+      const esExtremo = i === 0 || i === palabras.length - 1;
+      if (!esExtremo && PALABRAS_MINUSCULAS_CAPITALIZADO.has(palabra)) return palabra;
+      return palabra.charAt(0).toUpperCase() + palabra.slice(1);
+    })
+    .join(' ');
+}
+
+// Aplica el formato elegido a un nombre de plato (español o inglés) para
+// mostrarlo en los cartelitos.
+function aplicarFormatoNombre(texto, formato) {
+  if (!texto) return texto;
+  if (formato === 'capitalizado') return capitalizarTexto(texto);
+  return texto.toUpperCase(); // 'mayusculas' (predeterminado) y cualquier valor desconocido
+}
+
+function getFormatoTexto() {
+  try {
+    const raw = localStorage.getItem(LS_FORMATO_TEXTO);
+    return raw === 'capitalizado' ? 'capitalizado' : FORMATO_TEXTO_PREDETERMINADO;
+  } catch (e) {
+    return FORMATO_TEXTO_PREDETERMINADO;
+  }
+}
+
+function guardarFormatoTexto(formato) {
+  localStorage.setItem(LS_FORMATO_TEXTO, formato);
+}
+
+function rellenarFormatoTexto(formato) {
+  document.getElementById('formato-mayusculas').checked = formato === 'mayusculas';
+  document.getElementById('formato-capitalizado').checked = formato === 'capitalizado';
+}
+
+// Se llama al cambiar la opción en el modal: guarda la preferencia y
+// refresca al momento la vista previa de los cartelitos.
+function leerYAplicarFormatoTexto() {
+  const marcado = document.querySelector('input[name="formato-texto"]:checked');
+  const formato = marcado ? marcado.value : FORMATO_TEXTO_PREDETERMINADO;
+  guardarFormatoTexto(formato);
+  renderCartelitos();
 }
 
 // ---------- Cambios "optimistas" (altas/ediciones/bajas locales mientras el CSV se actualiza) ----------
@@ -456,10 +538,11 @@ function renderCartelitos() {
     const hoja = document.createElement('div');
     hoja.className = 'cartelitos-grid pagina-cartelitos' + (esUltimaHoja ? ' pagina-final' : '');
 
+    const formatoTexto = getFormatoTexto();
     grupo.forEach(plato => {
       const nodo = tpl.content.cloneNode(true);
-      nodo.querySelector('.cartelito-es').textContent = plato.nombre_es;
-      nodo.querySelector('.cartelito-en').textContent = plato.nombre_en || '';
+      nodo.querySelector('.cartelito-es').textContent = aplicarFormatoNombre(plato.nombre_es, formatoTexto);
+      nodo.querySelector('.cartelito-en').textContent = aplicarFormatoNombre(plato.nombre_en || '', formatoTexto);
       hoja.appendChild(nodo);
     });
 
@@ -846,6 +929,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-restablecer-letra').addEventListener('click', restablecerLetra);
   ['fuente-es', 'tamano-es', 'fuente-en', 'tamano-en'].forEach(id => {
     document.getElementById(id).addEventListener('input', leerYAplicarFormularioLetra);
+  });
+  ['formato-mayusculas', 'formato-capitalizado'].forEach(id => {
+    document.getElementById(id).addEventListener('change', leerYAplicarFormatoTexto);
   });
 
   document.getElementById('btn-ajustes-traduccion').addEventListener('click', abrirModalAjustes);

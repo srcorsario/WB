@@ -641,7 +641,11 @@ main {
 .cartelito-es {
   font-family: var(--fuente-es);
   font-weight: 800;
-  text-transform: uppercase;
+  /* El mayúsculas/minúsculas NO se fuerza aquí por CSS: lo decide el texto
+     que ya llega formateado desde JS (ver aplicarFormatoNombre() en
+     app.js), según la opción elegida en "🔤 Letra" → "Formato del texto al
+     imprimir". Un text-transform fijo aquí pisaría siempre la opción
+     "Capitalizado" y forzaría mayúsculas pasara lo que pasara. */
   font-size: var(--tamano-es);
   letter-spacing: 0.01em;
   line-height: 1.3;

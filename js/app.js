@@ -736,6 +736,14 @@ async function traducirYRevisarConGemini(nombreEs, categoria) {
     '3) más formal o gastronómica. ' +
     'Evita traducciones "creativas" que cambien el nombre del plato por otro plato distinto ' +
     '(por ejemplo, no traduzcas un jalapeño relleno como "jalapeño poppers"; describe lo que es). ' +
+    'Si el nombre usa una palabra de cocina extranjera o regional (española, japonesa, etc.) que ' +
+    'NO sea ya universalmente conocida en inglés (a diferencia de palabras ya asentadas del todo, ' +
+    'como "pizza", "sushi", "taco" o "paella", que sí puedes dejar solas sin más), combina esa ' +
+    'palabra con una breve explicación en inglés sencillo de qué es el producto realmente (tipo ' +
+    'de masa/preparación y qué lleva dentro), con el formato "<Nombre>, <descripción breve>" — por ' +
+    'ejemplo, "Empanadas, savory meat and pea pastry" en vez de solo "Meat and Pea Empanadas" o ' +
+    'solo una descripción sin el nombre. Así se entiende tanto el nombre real del plato como lo ' +
+    'que lleva, sin dar por hecho que quien lo lee ya conoce esa palabra. ' +
     'Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código, ' +
     'con este formato exacto: ' +
     '{"correccion":{"hayError":false,"texto":"..."},"opciones":[{"estilo":"Literal","texto":"..."},' +

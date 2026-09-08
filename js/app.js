@@ -648,10 +648,17 @@ async function traducirYRevisarConGemini(nombreEs, categoria) {
     'ortografía). Categoría: "' + categoria + '". ' +
     'Nombre en español (tal cual se escribió): "' + nombreEs + '". ' +
     'Primero revisa si ese nombre tiene una falta de ortografía clara o está mal escrito ' +
-    '(letras cambiadas, falta alguna letra, etc.). Sé conservador: si es un nombre de plato ' +
-    'poco habitual, casero, o una forma de escribirlo válida aunque no sea la más común, NO lo ' +
-    'marques como error. Si SÍ hay una falta de ortografía clara, escribe cómo debería ser ' +
-    'correctamente. Después, independientemente de si había o no falta de ortografía, ' +
+    '(letras cambiadas, falta alguna letra, etc.). Ten en cuenta también los ingredientes, ' +
+    'salsas o platos extranjeros conocidos internacionalmente (japoneses, italianos, franceses, ' +
+    'etc.): a veces el encargado los escribe "como suenan" en español, con un resultado que se ' +
+    'parece poco por escrito al nombre real pero suena parecido al leerlo en voz alta (por ' +
+    'ejemplo, "waquinicu" por "yakiniku"); si reconoces el nombre real por cómo suena, aunque se ' +
+    'escriba muy distinto, trátalo igualmente como una falta a corregir. Sé conservador: si es ' +
+    'un nombre de plato poco habitual, casero, o una forma de escribirlo válida aunque no sea la ' +
+    'más común, y no reconoces ningún nombre real (ni por ortografía ni por sonido) al que se ' +
+    'pueda estar refiriendo, NO lo marques como error. Si SÍ hay una falta de ortografía o de ' +
+    'sonido clara, escribe cómo debería ser correctamente. Después, independientemente de si ' +
+    'había o no falta de ortografía, ' +
     'tradúcelo al inglés entendiendo lo que el plato es realmente (aunque el texto original ' +
     'tenga la falta), pensando en un cartelito de menú. Dame EXACTAMENTE 3 alternativas de ' +
     'traducción, con estilos distintos: ' +

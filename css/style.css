@@ -208,6 +208,13 @@ main {
   color: var(--color-primary-dark);
 }
 
+.categoria-cabecera-acciones {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
 .categoria-lista {
   padding: 0.4rem 1.1rem 0.9rem;
 }
@@ -291,6 +298,34 @@ main {
   font-style: italic;
   font-size: 0.9rem;
   padding: 0.4rem 0.2rem 0.8rem;
+}
+
+/* ---------- Botón flotante (crear categoría) ---------- */
+
+.btn-flotante {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  width: 3.2rem;
+  height: 3.2rem;
+  border: none;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 1.8rem;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(43, 38, 32, 0.35);
+  z-index: 40;
+  transition: filter 0.15s, transform 0.15s;
+}
+
+.btn-flotante:hover {
+  filter: brightness(0.95);
+  transform: scale(1.05);
 }
 
 /* ---------- Modal añadir plato ---------- */

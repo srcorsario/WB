@@ -40,6 +40,8 @@
 
     <div id="categorias-container"></div>
 
+    <button id="btn-nueva-categoria-flotante" class="btn-flotante no-print" type="button" title="Crear categoría nueva">+</button>
+
   </section>
 
   <!-- ================= PESTAÑA: CARTELITOS ================= -->
@@ -190,6 +192,27 @@
     </form>
     <div class="modal-botones">
       <button type="button" id="btn-cerrar-ajustes" class="btn secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= MODAL: crear categoría nueva (sin plato) ================= -->
+<div id="modal-nueva-categoria" class="modal no-print" hidden>
+  <div class="modal-contenido">
+    <h2>Crear categoría nueva</h2>
+    <p class="modal-explicacion">
+      Se crea vacía, para ir añadiéndole platos cuando quieras. Si no le añades ningún plato,
+      de momento solo se ve en este navegador — en cuanto guardes el primer plato en ella, queda
+      guardada para siempre (para todos, en cualquier dispositivo).
+    </p>
+    <div class="nueva-categoria-bloque">
+      <input type="text" id="modal-nueva-categoria-input" placeholder="Nombre de la categoría">
+      <div id="modal-nueva-categoria-sugerencias" class="nueva-categoria-sugerencias"></div>
+    </div>
+    <div id="modal-nueva-categoria-error" class="form-error" hidden></div>
+    <div class="modal-botones">
+      <button type="button" id="btn-cancelar-nueva-categoria" class="btn secundario">Cancelar</button>
+      <button type="button" id="btn-crear-nueva-categoria" class="btn principal">Crear categoría</button>
     </div>
   </div>
 </div>

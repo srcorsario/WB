@@ -416,12 +416,53 @@ async function cargarPlatos() {
   renderTodo();
 }
 
+// ---------- Categorías creadas sin platos (guardadas en el navegador) ----------
+//
+// La hoja de cálculo solo conoce categorías a través de los platos que tiene
+// cada una (columna Categoria); no hay una lista de categorías aparte. Por
+// eso una categoría "vacía" (creada con el botón + flotante, sin ningún
+// plato todavía) no se puede mandar al Apps Script — se guarda aquí, solo en
+// este navegador, y en cuanto se guarda el primer plato en ella ya queda
+// reflejada en la propia hoja para todo el mundo (ver quitarCategoriaLocal()
+// en enviarNuevoPlato()).
+
+const LS_CATEGORIAS_LOCALES = 'cartelitos-categoriasLocales';
+
+function getCategoriasLocales() {
+  try {
+    const raw = localStorage.getItem(LS_CATEGORIAS_LOCALES);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function guardarCategoriasLocales(lista) {
+  localStorage.setItem(LS_CATEGORIAS_LOCALES, JSON.stringify(lista));
+}
+
+function anadirCategoriaLocal(nombre) {
+  const lista = getCategoriasLocales();
+  if (!lista.some(c => c.toLowerCase() === nombre.toLowerCase())) {
+    lista.push(nombre);
+    guardarCategoriasLocales(lista);
+  }
+}
+
+function quitarCategoriaLocal(nombre) {
+  guardarCategoriasLocales(getCategoriasLocales().filter(c => c.toLowerCase() !== nombre.toLowerCase()));
+}
+
 // ---------- Render: pestaña Platos ----------
 
 function categoriasOrdenadas() {
   const enConfig = CONFIG.CATEGORIAS || [];
   const presentes = [...new Set(platos.map(p => p.categoria))];
-  const extra = presentes.filter(c => !enConfig.includes(c));
+  const locales = getCategoriasLocales();
+  const extra = [];
+  [...presentes, ...locales].forEach(c => {
+    if (!enConfig.includes(c) && !extra.includes(c)) extra.push(c);
+  });
   return [...enConfig, ...extra];
 }
 
@@ -452,11 +493,34 @@ function renderCategorias(filtro = '') {
     tituloCategoria.textContent = categoria;
     cabecera.appendChild(tituloCategoria);
 
+    const acciones = document.createElement('div');
+    acciones.className = 'categoria-cabecera-acciones no-print';
+
+    // Solo se puede borrar una categoría vacía (sin ningún plato todavía, ni
+    // siquiera oculto por el buscador) y que además sea de las creadas con
+    // el botón + flotante — las que vienen de CONFIG.CATEGORIAS o ya tienen
+    // algún plato guardado no se pueden borrar desde aquí.
+    const esCategoriaVacia = !platos.some(p => p.categoria === categoria);
+    const esCategoriaLocal = getCategoriasLocales().some(c => c.toLowerCase() === categoria.toLowerCase());
+    if (esCategoriaVacia && esCategoriaLocal) {
+      const btnBorrarCategoria = document.createElement('button');
+      btnBorrarCategoria.className = 'btn-icono';
+      btnBorrarCategoria.title = 'Quitar esta categoría vacía';
+      btnBorrarCategoria.textContent = '🗑️';
+      btnBorrarCategoria.addEventListener('click', () => {
+        quitarCategoriaLocal(categoria);
+        renderTodo();
+      });
+      acciones.appendChild(btnBorrarCategoria);
+    }
+
     const btnAnadir = document.createElement('button');
-    btnAnadir.className = 'btn pequeno secundario no-print';
+    btnAnadir.className = 'btn pequeno secundario';
     btnAnadir.textContent = '+ Añadir plato';
     btnAnadir.addEventListener('click', () => abrirModalNuevoPlato(categoria));
-    cabecera.appendChild(btnAnadir);
+    acciones.appendChild(btnAnadir);
+
+    cabecera.appendChild(acciones);
 
     const lista = document.createElement('div');
     lista.className = 'categoria-lista';
@@ -896,8 +960,12 @@ function categoriasSugeridasDisponibles() {
   return (CONFIG.CATEGORIAS_SUGERIDAS || []).filter(c => !enUso.has(c.trim().toLowerCase()));
 }
 
-function renderSugerenciasCategoria() {
-  const cont = document.getElementById('nueva-categoria-sugerencias');
+// Pinta los "chips" de sugerencia dentro de cualquier contenedor, rellenando
+// el input indicado al pulsar uno. Se reutiliza tanto en el desplegable de
+// "Añadir plato" como en el modal independiente de "Crear categoría nueva".
+function renderSugerenciasCategoriaEn(contenedorId, inputId) {
+  const cont = document.getElementById(contenedorId);
+  const input = document.getElementById(inputId);
   cont.innerHTML = '';
   categoriasSugeridasDisponibles().forEach(cat => {
     const chip = document.createElement('button');
@@ -905,12 +973,15 @@ function renderSugerenciasCategoria() {
     chip.className = 'btn secundario pequeno';
     chip.textContent = cat;
     chip.addEventListener('click', () => {
-      const input = document.getElementById('nueva-categoria-input');
       input.value = cat;
       input.focus();
     });
     cont.appendChild(chip);
   });
+}
+
+function renderSugerenciasCategoria() {
+  renderSugerenciasCategoriaEn('nueva-categoria-sugerencias', 'nueva-categoria-input');
 }
 
 // Muestra el campo para escribir el nombre a mano (con sus sugerencias) solo
@@ -922,6 +993,50 @@ function actualizarBloqueNuevaCategoria() {
     renderSugerenciasCategoria();
     document.getElementById('nueva-categoria-input').focus();
   }
+}
+
+// ---------- Modal independiente: crear categoría nueva (sin plato) ----------
+//
+// Se abre con el botón + flotante de la pestaña "Platos", para poder crear
+// una categoría vacía sin obligar a añadir un plato a la vez.
+
+function abrirModalNuevaCategoria() {
+  document.getElementById('modal-nueva-categoria-input').value = '';
+  document.getElementById('modal-nueva-categoria-error').hidden = true;
+  renderSugerenciasCategoriaEn('modal-nueva-categoria-sugerencias', 'modal-nueva-categoria-input');
+  document.getElementById('modal-nueva-categoria').hidden = false;
+  document.getElementById('modal-nueva-categoria-input').focus();
+}
+
+function cerrarModalNuevaCategoria() {
+  document.getElementById('modal-nueva-categoria').hidden = true;
+}
+
+function crearCategoriaNueva() {
+  const errorBox = document.getElementById('modal-nueva-categoria-error');
+  errorBox.hidden = true;
+
+  const input = document.getElementById('modal-nueva-categoria-input');
+  const nombre = input.value.trim();
+
+  if (!nombre) {
+    errorBox.textContent = 'Escribe un nombre para la categoría.';
+    errorBox.hidden = false;
+    input.focus();
+    return;
+  }
+
+  const yaExiste = categoriasOrdenadas().some(c => c.toLowerCase() === nombre.toLowerCase());
+  if (yaExiste) {
+    errorBox.textContent = 'Ya existe una categoría con ese nombre.';
+    errorBox.hidden = false;
+    input.focus();
+    return;
+  }
+
+  anadirCategoriaLocal(nombre);
+  cerrarModalNuevaCategoria();
+  renderTodo();
 }
 
 // Categoría final a usar: la elegida en el desplegable, o lo escrito a mano
@@ -1049,6 +1164,10 @@ async function enviarNuevoPlato(ev) {
     const plato = { id: esEdicion ? platoEditandoId : siguienteId(), categoria, nombre_es: nombreEs, nombre_en: nombreEn };
 
     guardarPlatoRemoto(esEdicion ? 'update' : 'add', plato);
+    // Ya hay un plato de verdad en esta categoría: deja de ser una categoría
+    // "vacía" local y pasa a venir de los propios platos, así que se puede
+    // quitar de la lista local (si no estaba, no hace nada).
+    quitarCategoriaLocal(categoria);
 
     if (!esEdicion) seleccion.add(plato.id);
     guardarSeleccion(seleccion);
@@ -1115,6 +1234,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-ver-opciones-traduccion').addEventListener('click', mostrarOpcionesTraduccionClick);
   document.getElementById('btn-correccion-si').addEventListener('click', () => responderCorreccion(true));
   document.getElementById('btn-correccion-no').addEventListener('click', () => responderCorreccion(false));
+
+  document.getElementById('btn-nueva-categoria-flotante').addEventListener('click', abrirModalNuevaCategoria);
+  document.getElementById('btn-cancelar-nueva-categoria').addEventListener('click', cerrarModalNuevaCategoria);
+  document.getElementById('btn-crear-nueva-categoria').addEventListener('click', crearCategoriaNueva);
 
   document.getElementById('btn-ajustes-letra').addEventListener('click', abrirModalLetra);
   document.getElementById('btn-cerrar-ajustes-letra').addEventListener('click', cerrarModalLetra);

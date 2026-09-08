@@ -647,6 +647,11 @@ async function traducirYRevisarConGemini(nombreEs, categoria) {
     'plato en español tal como lo ha escrito el encargado (puede tener alguna falta de ' +
     'ortografía). Categoría: "' + categoria + '". ' +
     'Nombre en español (tal cual se escribió): "' + nombreEs + '". ' +
+    'La categoría indica solo en qué sección de la carta está colocado el plato (útil para el ' +
+    'tono de la traducción), pero NO es garantía de que sea dulce, salado, ni de sus ' +
+    'ingredientes: básate siempre en lo que el nombre del plato dice que es realmente, aunque no ' +
+    'encaje del todo con la categoría en la que está (por ejemplo, un plato salado puede estar ' +
+    'colocado en "Postres" si así lo sirve el restaurante). ' +
     'Primero revisa si ese nombre tiene una falta de ortografía clara o está mal escrito ' +
     '(letras cambiadas, falta alguna letra, etc.). Ten en cuenta también los ingredientes, ' +
     'salsas o platos extranjeros conocidos internacionalmente (japoneses, italianos, franceses, ' +
@@ -782,12 +787,19 @@ async function mostrarOpcionesTraduccionClick() {
   errorBox.hidden = true;
 
   const nombreEs = document.getElementById('nuevo-nombre-es').value.trim();
-  const categoria = document.getElementById('nuevo-categoria').value;
+  const categoria = obtenerCategoriaSeleccionada();
 
   if (!nombreEs) {
     errorBox.textContent = 'Escribe primero el nombre del plato en español.';
     errorBox.hidden = false;
     document.getElementById('nuevo-nombre-es').focus();
+    return;
+  }
+
+  if (!categoria) {
+    errorBox.textContent = 'Escribe el nombre de la categoría nueva, o elige una existente.';
+    errorBox.hidden = false;
+    document.getElementById('nueva-categoria-input').focus();
     return;
   }
 
@@ -853,6 +865,8 @@ function cerrarModalAjustes() {
 
 // ---------- Modal: añadir / editar plato ----------
 
+const VALOR_NUEVA_CATEGORIA = '__nueva__';
+
 function llenarSelectCategorias(categoriaPreseleccionada) {
   const select = document.getElementById('nuevo-categoria');
   select.innerHTML = '';
@@ -862,7 +876,64 @@ function llenarSelectCategorias(categoriaPreseleccionada) {
     opt.textContent = cat;
     select.appendChild(opt);
   });
+
+  const optNueva = document.createElement('option');
+  optNueva.value = VALOR_NUEVA_CATEGORIA;
+  optNueva.textContent = '+ Crear categoría nueva…';
+  select.appendChild(optNueva);
+
   if (categoriaPreseleccionada) select.value = categoriaPreseleccionada;
+
+  document.getElementById('nueva-categoria-input').value = '';
+  actualizarBloqueNuevaCategoria();
+}
+
+// Categorías de CONFIG.CATEGORIAS_SUGERIDAS que todavía no se estén usando
+// (ni en CONFIG.CATEGORIAS ni porque ya haya algún plato con esa categoría),
+// para no repetir sugerencias que ya existen.
+function categoriasSugeridasDisponibles() {
+  const enUso = new Set(categoriasOrdenadas().map(c => c.trim().toLowerCase()));
+  return (CONFIG.CATEGORIAS_SUGERIDAS || []).filter(c => !enUso.has(c.trim().toLowerCase()));
+}
+
+function renderSugerenciasCategoria() {
+  const cont = document.getElementById('nueva-categoria-sugerencias');
+  cont.innerHTML = '';
+  categoriasSugeridasDisponibles().forEach(cat => {
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = 'btn secundario pequeno';
+    chip.textContent = cat;
+    chip.addEventListener('click', () => {
+      const input = document.getElementById('nueva-categoria-input');
+      input.value = cat;
+      input.focus();
+    });
+    cont.appendChild(chip);
+  });
+}
+
+// Muestra el campo para escribir el nombre a mano (con sus sugerencias) solo
+// cuando se elige "+ Crear categoría nueva..." en el desplegable.
+function actualizarBloqueNuevaCategoria() {
+  const esNueva = document.getElementById('nuevo-categoria').value === VALOR_NUEVA_CATEGORIA;
+  document.getElementById('nueva-categoria-bloque').hidden = !esNueva;
+  if (esNueva) {
+    renderSugerenciasCategoria();
+    document.getElementById('nueva-categoria-input').focus();
+  }
+}
+
+// Categoría final a usar: la elegida en el desplegable, o lo escrito a mano
+// si se eligió "+ Crear categoría nueva...". Una categoría "nueva" no se
+// guarda en ningún sitio aparte: en cuanto se guarda un plato con ella,
+// categoriasOrdenadas() ya la recoge de los propios platos.
+function obtenerCategoriaSeleccionada() {
+  const valor = document.getElementById('nuevo-categoria').value;
+  if (valor === VALOR_NUEVA_CATEGORIA) {
+    return document.getElementById('nueva-categoria-input').value.trim();
+  }
+  return valor;
 }
 
 function abrirModalNuevoPlato(categoriaPreseleccionada) {
@@ -938,7 +1009,14 @@ async function enviarNuevoPlato(ev) {
     return;
   }
 
-  const categoria = document.getElementById('nuevo-categoria').value;
+  const categoria = obtenerCategoriaSeleccionada();
+  if (!categoria) {
+    errorBox.textContent = 'Escribe el nombre de la categoría nueva, o elige una existente.';
+    errorBox.hidden = false;
+    document.getElementById('nueva-categoria-input').focus();
+    return;
+  }
+
   let nombreEs = document.getElementById('nuevo-nombre-es').value.trim();
   let nombreEn = document.getElementById('nuevo-nombre-en').value.trim();
   const esEdicion = platoEditandoId !== null;
@@ -1033,6 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-cancelar-nuevo').addEventListener('click', cerrarModalNuevoPlato);
   document.getElementById('form-nuevo-plato').addEventListener('submit', enviarNuevoPlato);
+  document.getElementById('nuevo-categoria').addEventListener('change', actualizarBloqueNuevaCategoria);
   document.getElementById('btn-ver-opciones-traduccion').addEventListener('click', mostrarOpcionesTraduccionClick);
   document.getElementById('btn-correccion-si').addEventListener('click', () => responderCorreccion(true));
   document.getElementById('btn-correccion-no').addEventListener('click', () => responderCorreccion(false));

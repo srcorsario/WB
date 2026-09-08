@@ -33,5 +33,21 @@ const CONFIG = {
     'Salsas',
     'Postres',
     'Bebidas'
+  ],
+
+  // Sugerencias que se ofrecen al crear una categoría nueva desde "+ Añadir
+  // plato" (botón "+ Crear categoría nueva..."). Las que ya estén en uso
+  // (en CATEGORIAS de arriba o porque ya hay algún plato con esa categoría)
+  // se ocultan automáticamente de esta lista. Se puede editar libremente:
+  // añadir, quitar o reordenar no afecta a los platos ya guardados.
+  CATEGORIAS_SUGERIDAS: [
+    'Quesos',
+    'Embutidos y Fiambres',
+    'Panes',
+    'Fruta',
+    'Aperitivos',
+    'Guarniciones',
+    'Infusiones y Café',
+    'Show Cooking'
   ]
 };

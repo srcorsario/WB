@@ -92,6 +92,14 @@
       <label>Nombre en español
         <input type="text" id="nuevo-nombre-es" required placeholder="Ej. Ensalada de tomate">
       </label>
+      <div id="correccion-ortografia" class="correccion-ortografia" hidden>
+        <p class="correccion-pregunta">¿Quisiste decir esto?</p>
+        <input type="text" id="correccion-texto-input">
+        <div class="correccion-botones">
+          <button type="button" id="btn-correccion-si" class="btn secundario pequeno">Sí, corregir</button>
+          <button type="button" id="btn-correccion-no" class="btn secundario pequeno">No, dejar como estaba</button>
+        </div>
+      </div>
       <label>Nombre en inglés <span class="opcional">(opcional, se traduce automáticamente si lo dejas vacío)</span>
         <div class="campo-con-boton">
           <input type="text" id="nuevo-nombre-en" placeholder="Ej. Tomato salad">

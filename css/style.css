@@ -362,6 +362,36 @@ main {
   white-space: nowrap;
 }
 
+.correccion-ortografia {
+  margin: 0.5rem 0 0.9rem;
+  padding: 0.6rem 0.7rem;
+  background: #fff8ec;
+  border: 1px solid var(--color-accent);
+  border-radius: 8px;
+}
+
+.correccion-pregunta {
+  margin: 0 0 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--color-primary-dark);
+}
+
+.correccion-ortografia input {
+  width: 100%;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 0.95rem;
+  margin-bottom: 0.5rem;
+}
+
+.correccion-botones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
 .opciones-traduccion {
   display: flex;
   flex-direction: column;

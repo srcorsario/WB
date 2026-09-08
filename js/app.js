@@ -585,44 +585,87 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;');
 }
 
-function parseOpcionesTraduccion(texto) {
-  if (!texto) return [];
+// Analiza la respuesta de Gemini, que ahora incluye a la vez la posible
+// corrección ortográfica del nombre en español y las alternativas de
+// traducción, en un único objeto JSON (ver el prompt en
+// traducirYRevisarConGemini()). Si algo no encaja (Gemini no devolvió JSON
+// válido, faltan campos, etc.) se devuelve "sin corrección" y sin opciones,
+// igual que si no hubiera contestado nada.
+function parseRespuestaTraduccion(texto, nombreEsOriginal) {
+  const sinCorreccion = { hayError: false, texto: nombreEsOriginal };
+  if (!texto) return { correccion: sinCorreccion, opciones: [] };
+
   // Gemini a veces envuelve el JSON en un bloque de código ```json ... ```
   const limpio = texto.replace(/```json|```/g, '').trim();
-  const match = limpio.match(/\[[\s\S]*\]/);
-  if (!match) return [];
+  const match = limpio.match(/\{[\s\S]*\}/);
+  if (!match) return { correccion: sinCorreccion, opciones: [] };
+
   try {
-    const arr = JSON.parse(match[0]);
-    if (!Array.isArray(arr)) return [];
-    return arr
-      .filter(o => o && typeof o.texto === 'string' && o.texto.trim())
-      .map(o => ({
-        estilo: (o.estilo || '').toString().trim(),
-        texto: o.texto.trim().replace(/^"|"$/g, '').replace(/\.$/, '')
-      }));
+    const obj = JSON.parse(match[0]);
+
+    const opciones = Array.isArray(obj.opciones)
+      ? obj.opciones
+          .filter(o => o && typeof o.texto === 'string' && o.texto.trim())
+          .map(o => ({
+            estilo: (o.estilo || '').toString().trim(),
+            texto: o.texto.trim().replace(/^"|"$/g, '').replace(/\.$/, '')
+          }))
+      : [];
+
+    const correccionBruta = obj.correccion || {};
+    const textoCorregido = typeof correccionBruta.texto === 'string' ? correccionBruta.texto.trim() : '';
+    // Solo se considera que "hay error" si Gemini lo marca como tal Y además
+    // el texto corregido es realmente distinto del original (evita mostrar
+    // la cajita de confirmación si Gemini devuelve el mismo texto tal cual).
+    const hayError = correccionBruta.hayError === true &&
+      !!textoCorregido &&
+      textoCorregido.toLowerCase() !== nombreEsOriginal.trim().toLowerCase();
+
+    return {
+      correccion: hayError ? { hayError: true, texto: textoCorregido } : sinCorreccion,
+      opciones
+    };
   } catch (e) {
-    return [];
+    return { correccion: sinCorreccion, opciones: [] };
   }
 }
 
-async function traducirVariantesConGemini(nombreEs, categoria) {
+// Pide a Gemini, en una sola llamada, que (1) revise si el nombre en español
+// tiene una falta de ortografía clara y (2) lo traduzca al inglés en 3
+// estilos distintos — entendiendo el plato aunque el texto tenga esa falta,
+// igual que lo entendería una persona. Así, tanto si el usuario acepta la
+// corrección como si la rechaza, las opciones de traducción ya generadas
+// siguen siendo válidas y no hace falta una segunda llamada (ni gastar el
+// doble de cuota de las claves de Gemini).
+async function traducirYRevisarConGemini(nombreEs, categoria) {
   const keys = getGeminiKeys();
   if (keys.length === 0) {
     throw new Error('No hay ninguna clave de Gemini configurada. Pulsa "⚙️ Traducción" para añadir una.');
   }
 
-  const prompt = 'Traduce al inglés el siguiente nombre de un plato de buffet/restaurante, ' +
-    'pensado para un cartelito de menú. Categoría: "' + categoria + '". ' +
-    'Nombre en español: "' + nombreEs + '". ' +
-    'Dame EXACTAMENTE 3 alternativas de traducción, con estilos distintos: ' +
+  const prompt = 'Vas a ayudar con la carta de un buffet/restaurante. Te doy el nombre de un ' +
+    'plato en español tal como lo ha escrito el encargado (puede tener alguna falta de ' +
+    'ortografía). Categoría: "' + categoria + '". ' +
+    'Nombre en español (tal cual se escribió): "' + nombreEs + '". ' +
+    'Primero revisa si ese nombre tiene una falta de ortografía clara o está mal escrito ' +
+    '(letras cambiadas, falta alguna letra, etc.). Sé conservador: si es un nombre de plato ' +
+    'poco habitual, casero, o una forma de escribirlo válida aunque no sea la más común, NO lo ' +
+    'marques como error. Si SÍ hay una falta de ortografía clara, escribe cómo debería ser ' +
+    'correctamente. Después, independientemente de si había o no falta de ortografía, ' +
+    'tradúcelo al inglés entendiendo lo que el plato es realmente (aunque el texto original ' +
+    'tenga la falta), pensando en un cartelito de menú. Dame EXACTAMENTE 3 alternativas de ' +
+    'traducción, con estilos distintos: ' +
     '1) literal y neutra, tal cual describe el plato; ' +
     '2) breve, como se vería en la carta de un restaurante; ' +
     '3) más formal o gastronómica. ' +
     'Evita traducciones "creativas" que cambien el nombre del plato por otro plato distinto ' +
     '(por ejemplo, no traduzcas un jalapeño relleno como "jalapeño poppers"; describe lo que es). ' +
-    'Responde ÚNICAMENTE con un array JSON válido, sin texto adicional ni bloques de código, ' +
+    'Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código, ' +
     'con este formato exacto: ' +
-    '[{"estilo":"Literal","texto":"..."},{"estilo":"Breve","texto":"..."},{"estilo":"Formal","texto":"..."}]';
+    '{"correccion":{"hayError":false,"texto":"..."},"opciones":[{"estilo":"Literal","texto":"..."},' +
+    '{"estilo":"Breve","texto":"..."},{"estilo":"Formal","texto":"..."}]} ' +
+    '— en "correccion.texto" escribe siempre el nombre en español: corregido si hayError es ' +
+    'true, o exactamente igual al original si hayError es false.';
 
   let ultimoError = '';
 
@@ -641,8 +684,8 @@ async function traducirVariantesConGemini(nombreEs, categoria) {
       }
 
       const texto = data.candidates?.[0]?.content?.parts?.[0]?.text;
-      const opciones = parseOpcionesTraduccion(texto);
-      if (opciones.length) return opciones;
+      const resultado = parseRespuestaTraduccion(texto, nombreEs);
+      if (resultado.opciones.length) return resultado;
       ultimoError = 'Respuesta de Gemini sin opciones válidas.';
     } catch (err) {
       ultimoError = err.message;
@@ -650,6 +693,44 @@ async function traducirVariantesConGemini(nombreEs, categoria) {
   }
 
   throw new Error(ultimoError || 'No se pudo traducir.');
+}
+
+// ---------- Confirmación "¿Quisiste decir...?" (revisión ortográfica) ----------
+//
+// Cuando traducirYRevisarConGemini() detecta una posible falta de ortografía,
+// se muestra esta cajita con el texto corregido (editable) y dos botones. La
+// función es una promesa que se resuelve cuando el usuario responde: con el
+// texto final (editado o no) si acepta la corrección, o con null si prefiere
+// dejarlo como estaba. Se usa igual tanto si el plato se está guardando ya
+// (guardado en pausa hasta la respuesta) como si solo se están consultando
+// opciones de traducción (no bloquea nada más, pero el flujo espera igual a
+// que el usuario decida antes de mostrar las opciones).
+let resolverPromesaCorreccion = null;
+
+function mostrarCorreccionOrtografica(textoCorregido) {
+  return new Promise(resolve => {
+    const caja = document.getElementById('correccion-ortografia');
+    const input = document.getElementById('correccion-texto-input');
+    input.value = textoCorregido;
+    caja.hidden = false;
+    resolverPromesaCorreccion = resolve;
+    input.focus();
+  });
+}
+
+function responderCorreccion(aceptar) {
+  const caja = document.getElementById('correccion-ortografia');
+  const input = document.getElementById('correccion-texto-input');
+  const resolver = resolverPromesaCorreccion;
+  resolverPromesaCorreccion = null;
+  caja.hidden = true;
+  if (resolver) resolver(aceptar ? input.value.trim() : null);
+}
+
+// Se llama al abrir/cerrar el modal de plato, para no dejar una promesa
+// pendiente colgada si el usuario cierra el modal sin responder a la cajita.
+function ocultarCorreccionOrtografica() {
+  responderCorreccion(false);
 }
 
 function renderOpcionesTraduccion(opciones) {
@@ -708,10 +789,17 @@ async function mostrarOpcionesTraduccionClick() {
   btn.disabled = true;
   btn.textContent = 'Traduciendo...';
   ocultarOpcionesTraduccion();
+  ocultarCorreccionOrtografica();
 
   try {
-    const opciones = await traducirVariantesConGemini(nombreEs, categoria);
-    renderOpcionesTraduccion(opciones);
+    const resultado = await traducirYRevisarConGemini(nombreEs, categoria);
+
+    if (resultado.correccion.hayError) {
+      const corregido = await mostrarCorreccionOrtografica(resultado.correccion.texto);
+      if (corregido) document.getElementById('nuevo-nombre-es').value = corregido;
+    }
+
+    renderOpcionesTraduccion(resultado.opciones);
   } catch (err) {
     errorBox.textContent = 'No se pudieron generar opciones de traducción: ' + err.message;
     errorBox.hidden = false;
@@ -780,6 +868,7 @@ function abrirModalNuevoPlato(categoriaPreseleccionada) {
   document.getElementById('nuevo-nombre-en').value = '';
   document.getElementById('form-nuevo-plato-error').hidden = true;
   ocultarOpcionesTraduccion();
+  ocultarCorreccionOrtografica();
   document.getElementById('modal-nuevo-plato').hidden = false;
   document.getElementById('nuevo-nombre-es').focus();
 }
@@ -794,6 +883,7 @@ function abrirModalEditarPlato(plato) {
   document.getElementById('nuevo-nombre-en').value = plato.nombre_en || '';
   document.getElementById('form-nuevo-plato-error').hidden = true;
   ocultarOpcionesTraduccion();
+  ocultarCorreccionOrtografica();
   document.getElementById('modal-nuevo-plato').hidden = false;
   document.getElementById('nuevo-nombre-es').focus();
 }
@@ -801,6 +891,7 @@ function abrirModalEditarPlato(plato) {
 function cerrarModalNuevoPlato() {
   document.getElementById('modal-nuevo-plato').hidden = true;
   ocultarOpcionesTraduccion();
+  ocultarCorreccionOrtografica();
   platoEditandoId = null;
 }
 
@@ -841,7 +932,7 @@ async function enviarNuevoPlato(ev) {
   }
 
   const categoria = document.getElementById('nuevo-categoria').value;
-  const nombreEs = document.getElementById('nuevo-nombre-es').value.trim();
+  let nombreEs = document.getElementById('nuevo-nombre-es').value.trim();
   let nombreEn = document.getElementById('nuevo-nombre-en').value.trim();
   const esEdicion = platoEditandoId !== null;
 
@@ -851,11 +942,22 @@ async function enviarNuevoPlato(ev) {
   try {
     if (!nombreEn) {
       btnGuardar.textContent = 'Traduciendo...';
-      const opciones = await traducirVariantesConGemini(nombreEs, categoria);
-      if (!opciones.length) throw new Error('No se pudo traducir.');
+      const resultado = await traducirYRevisarConGemini(nombreEs, categoria);
+      if (!resultado.opciones.length) throw new Error('No se pudo traducir.');
+
+      if (resultado.correccion.hayError) {
+        btnGuardar.textContent = 'Revisa la corrección...';
+        const corregido = await mostrarCorreccionOrtografica(resultado.correccion.texto);
+        if (corregido) {
+          nombreEs = corregido;
+          document.getElementById('nuevo-nombre-es').value = corregido;
+        }
+        btnGuardar.textContent = 'Guardando...';
+      }
+
       // Si el usuario no ha elegido ninguna opción a mano, se usa la primera
       // (la traducción literal/neutra) como valor por defecto.
-      nombreEn = opciones[0].texto;
+      nombreEn = resultado.opciones[0].texto;
     }
 
     btnGuardar.textContent = 'Guardando...';
@@ -925,6 +1027,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-cancelar-nuevo').addEventListener('click', cerrarModalNuevoPlato);
   document.getElementById('form-nuevo-plato').addEventListener('submit', enviarNuevoPlato);
   document.getElementById('btn-ver-opciones-traduccion').addEventListener('click', mostrarOpcionesTraduccionClick);
+  document.getElementById('btn-correccion-si').addEventListener('click', () => responderCorreccion(true));
+  document.getElementById('btn-correccion-no').addEventListener('click', () => responderCorreccion(false));
 
   document.getElementById('btn-ajustes-letra').addEventListener('click', abrirModalLetra);
   document.getElementById('btn-cerrar-ajustes-letra').addEventListener('click', cerrarModalLetra);

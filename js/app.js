@@ -744,6 +744,16 @@ async function traducirYRevisarConGemini(nombreEs, categoria) {
     'ejemplo, "Empanadas, savory meat and pea pastry" en vez de solo "Meat and Pea Empanadas" o ' +
     'solo una descripción sin el nombre. Así se entiende tanto el nombre real del plato como lo ' +
     'que lleva, sin dar por hecho que quien lo lee ya conoce esa palabra. ' +
+    'El nombre en español puede ser muy corto (es para un cartelito de buffet, no hay sitio para ' +
+    'explicaciones largas), así que si reconoces que se trata de un plato tradicional conocido ' +
+    '(regional o internacional), usa tú mismo lo que sabes de su receta real y típica para la ' +
+    'descripción — ingredientes característicos, el corte o la parte concreta que se usa, cómo se ' +
+    'cocina — aunque esas palabras no aparezcan en el nombre que te doy. Por ejemplo, el "frito ' +
+    'mallorquín" tradicional se hace con casquería (asadura) de cordero o cerdo, no con carne ' +
+    'genérica: la descripción debería reflejar eso aunque el nombre en español solo diga "frito ' +
+    'mallorquín". Si el plato no te suena y no lo reconoces con seguridad, entonces sí basa la ' +
+    'descripción solo en lo que las palabras del nombre dicen literalmente, sin inventar ' +
+    'ingredientes que no puedas deducir de ellas. ' +
     'Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código, ' +
     'con este formato exacto: ' +
     '{"correccion":{"hayError":false,"texto":"..."},"opciones":[{"estilo":"Literal","texto":"..."},' +

@@ -448,7 +448,9 @@ function renderCategorias(filtro = '') {
 
     const cabecera = document.createElement('div');
     cabecera.className = 'categoria-cabecera';
-    cabecera.innerHTML = `<h2>${categoria}</h2>`;
+    const tituloCategoria = document.createElement('h2');
+    tituloCategoria.textContent = categoria;
+    cabecera.appendChild(tituloCategoria);
 
     const btnAnadir = document.createElement('button');
     btnAnadir.className = 'btn pequeno secundario no-print';

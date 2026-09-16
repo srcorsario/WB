@@ -663,13 +663,8 @@ function alternarSeleccion(id, marcado) {
 // mitad de un cartelito ni descuadrando el tamaño de las casillas.
 const CARTELITOS_POR_HOJA = 8; // 2 columnas x 4 filas, igual que la plantilla en A4
 
-function renderCartelitos() {
-  const contenedor = document.getElementById('cartelitos-paginas');
-  const mensajeVacio = document.getElementById('cartelitos-vacio-msg');
-  const tpl = document.getElementById('tpl-cartelito');
-  contenedor.innerHTML = '';
-
-  const seleccionados = platos
+function platosSeleccionadosOrdenados() {
+  return platos
     .filter(p => seleccion.has(p.id))
     .sort((a, b) => {
       const ordenCat = categoriasOrdenadas();
@@ -677,8 +672,80 @@ function renderCartelitos() {
       if (diff !== 0) return diff;
       return a.nombre_es.localeCompare(b.nombre_es, 'es');
     });
+}
+
+// La lista lateral de "Cartelitos" es una "foto" de qué platos mostrar, no
+// un reflejo en vivo de la selección: si desmarcas uno ahí, sigue
+// apareciendo (ahora desmarcado) por si te arrepientes y lo quieres volver
+// a marcar sin ir a buscarlo a "Platos". Esa foto solo se vuelve a sacar al
+// entrar en la pestaña "Cartelitos" o al recargar la web entera — nunca
+// solo por marcar/desmarcar un check, ni por "Recargar de la hoja", editar
+// un plato, etc.
+let listaCartelitosIds = [];
+let listaCartelitosInicializada = false;
+
+function refrescarListaLateralCartelitos() {
+  listaCartelitosIds = platosSeleccionadosOrdenados().map(p => p.id);
+  listaCartelitosInicializada = true;
+}
+
+function renderCartelitos() {
+  const contenedor = document.getElementById('cartelitos-paginas');
+  const listaLateral = document.getElementById('cartelitos-lista-lateral');
+  const mensajeVacio = document.getElementById('cartelitos-vacio-msg');
+  const tpl = document.getElementById('tpl-cartelito');
+  contenedor.innerHTML = '';
+  listaLateral.innerHTML = '';
+
+  // Lo que se va a imprimir sí es en vivo: si desmarcas un plato (aquí o en
+  // "Platos"), su cartelito desaparece de las hojas al momento.
+  const seleccionados = platosSeleccionadosOrdenados();
 
   mensajeVacio.hidden = seleccionados.length > 0;
+
+  // La primera vez que se pinta esta pestaña (carga inicial de la web) no
+  // hay foto todavía: se saca en ese momento.
+  if (!listaCartelitosInicializada) refrescarListaLateralCartelitos();
+
+  // Lista lateral: un check por cada plato de la foto (en el mismo orden que
+  // las hojas), para poder quitar alguno sin ir a "Platos". Solo se muestra
+  // el nombre en español (el que identifica el plato); si no cabe se corta
+  // con "…" — el título completo queda en el "title" al pasar el ratón por
+  // encima.
+  const filasLateral = listaCartelitosIds
+    .map(id => platos.find(p => p.id === id))
+    .filter(Boolean); // por si algún plato de la foto se llegó a borrar
+
+  if (filasLateral.length > 0) {
+    const marcados = filasLateral.filter(p => seleccion.has(p.id)).length;
+    const titulo = document.createElement('h2');
+    titulo.className = 'lista-lateral-titulo';
+    titulo.textContent = marcados === filasLateral.length
+      ? `Seleccionados (${marcados})`
+      : `Seleccionados (${marcados} de ${filasLateral.length})`;
+    listaLateral.appendChild(titulo);
+
+    filasLateral.forEach(plato => {
+      const marcado = seleccion.has(plato.id);
+      const fila = document.createElement('label');
+      fila.className = 'lista-lateral-item' + (marcado ? '' : ' lista-lateral-item-desmarcada');
+      fila.title = plato.nombre_es;
+
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'lista-lateral-checkbox';
+      checkbox.checked = marcado;
+      checkbox.addEventListener('change', () => alternarSeleccion(plato.id, checkbox.checked));
+
+      const nombre = document.createElement('span');
+      nombre.className = 'lista-lateral-nombre';
+      nombre.textContent = plato.nombre_es;
+
+      fila.appendChild(checkbox);
+      fila.appendChild(nombre);
+      listaLateral.appendChild(fila);
+    });
+  }
 
   for (let inicio = 0; inicio < seleccionados.length; inicio += CARTELITOS_POR_HOJA) {
     const grupo = seleccionados.slice(inicio, inicio + CARTELITOS_POR_HOJA);
@@ -726,6 +793,14 @@ function renderTodo() {
 function activarTab(nombre) {
   document.querySelectorAll('.tab-btn[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === nombre));
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + nombre));
+  // Al entrar en "Cartelitos" se saca una foto nueva de la selección para la
+  // lista lateral (ver refrescarListaLateralCartelitos): así, si la última
+  // vez dejaste algo desmarcado ahí "por si acaso", al volver a entrar en la
+  // pestaña ya no aparece.
+  if (nombre === 'cartelitos') {
+    refrescarListaLateralCartelitos();
+    renderCartelitos();
+  }
 }
 
 // ---------- Traducción con Gemini (desde el navegador) ----------

@@ -749,12 +749,90 @@ main {
    caben, se desplazan horizontalmente en vez de encogerse (igual que al
    ver un PDF real en el móvil), para no deformar ni recortar el texto. */
 
+#cartelitos-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
 #cartelitos-paginas {
   display: flex;
+  flex: 1;
   flex-wrap: wrap;
   align-items: flex-start;
   gap: 2rem;
   overflow-x: auto;
+  min-width: 0;
+}
+
+/* Lista lateral: un check por plato seleccionado, en el mismo orden que las
+   hojas de al lado, para poder quitar alguno del todo sin ir a "Platos". */
+#cartelitos-lista-lateral {
+  flex: 0 0 220px;
+  position: sticky;
+  top: 1rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 0.9rem 1rem;
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+}
+
+.lista-lateral-titulo {
+  margin: 0 0 0.6rem;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--color-text-muted);
+}
+
+.lista-lateral-item {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.35rem 0;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.lista-lateral-checkbox {
+  flex-shrink: 0;
+  width: 1.05rem;
+  height: 1.05rem;
+  accent-color: var(--color-primary);
+}
+
+.lista-lateral-nombre {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.88rem;
+}
+
+/* Al desmarcar un plato aquí no desaparece de la lista (por si te
+   arrepientes) — solo se atenúa y se tacha, para que quede claro que ya no
+   se va a imprimir. */
+.lista-lateral-item-desmarcada .lista-lateral-nombre {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}
+
+@media (max-width: 900px) {
+  #cartelitos-layout {
+    flex-direction: column;
+  }
+
+  #cartelitos-lista-lateral {
+    position: static;
+    width: 100%;
+    max-height: none;
+    order: -1;
+  }
 }
 
 .pagina-wrapper {
@@ -867,6 +945,11 @@ main {
   main { max-width: none; padding: 0 2mm 0 0; margin: 0; }
   .tab-panel { display: none !important; }
   #tab-cartelitos { display: block !important; }
+
+  /* La lista lateral ya se oculta por ser ".no-print", pero además el
+     layout deja de ser flex: así #cartelitos-paginas no arrastra ningún
+     hueco/gap pensado para una columna que ya no está. */
+  #cartelitos-layout { display: block; }
 
   /* La previsualización en pantalla usa flexbox para colocar varias hojas
      una junto a otra; en la hoja impresa de verdad cada una ocupa toda la

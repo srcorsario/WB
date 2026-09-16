@@ -197,9 +197,10 @@
     </p>
     <div id="lista-claves" class="lista-claves"></div>
     <form id="form-nueva-clave">
-      <input type="text" id="nueva-clave-input" placeholder="Pega aquí una clave de la API de Gemini">
+      <textarea id="nueva-clave-input" rows="2" placeholder="Pega aquí una o varias claves de la API de Gemini — una por línea, o separadas por comas/espacios"></textarea>
       <button type="submit" class="btn principal pequeno">+ Añadir</button>
     </form>
+    <p id="nueva-clave-resultado" class="clave-resultado" hidden></p>
     <div class="modal-botones">
       <button type="button" id="btn-cerrar-ajustes" class="btn secundario">Cerrar</button>
     </div>

@@ -56,12 +56,27 @@ function guardarGeminiKeys(keys) {
   localStorage.setItem(LS_GEMINI_KEYS, JSON.stringify(keys));
 }
 
-function anadirGeminiKey(key) {
-  const keys = getGeminiKeys();
-  if (key && !keys.includes(key)) {
-    keys.push(key);
-    guardarGeminiKeys(keys);
+// Admite pegar varias claves de golpe (una por línea, o separadas por comas
+// y/o espacios) — compara con las que ya había guardadas y con las que se
+// repiten dentro del propio pegado, y solo añade las que sean realmente
+// nuevas. Devuelve un resumen para poder avisar al usuario de qué pasó.
+function anadirGeminiKeys(texto) {
+  const claves = String(texto || '')
+    .split(/[\s,;]+/)
+    .map(k => k.trim())
+    .filter(Boolean);
+
+  const existentes = getGeminiKeys();
+  const nuevas = [];
+  claves.forEach(k => {
+    if (!existentes.includes(k) && !nuevas.includes(k)) nuevas.push(k);
+  });
+
+  if (nuevas.length > 0) {
+    guardarGeminiKeys([...existentes, ...nuevas]);
   }
+
+  return { total: claves.length, anadidas: nuevas.length, repetidas: claves.length - nuevas.length };
 }
 
 function borrarGeminiKey(key) {
@@ -1134,9 +1149,27 @@ function renderListaClaves() {
   });
 }
 
+function mostrarResultadoClaves({ total, anadidas, repetidas }) {
+  const msg = document.getElementById('nueva-clave-resultado');
+  if (total === 0) {
+    msg.hidden = true;
+    return;
+  }
+  if (anadidas === 0) {
+    msg.textContent = repetidas === 1 ? 'Esa clave ya la tenías añadida.' : 'Esas claves ya las tenías todas añadidas.';
+  } else if (repetidas === 0) {
+    msg.textContent = anadidas === 1 ? 'Añadida 1 clave nueva.' : `Añadidas ${anadidas} claves nuevas.`;
+  } else {
+    msg.textContent = `Añadida${anadidas === 1 ? '' : 's'} ${anadidas} clave${anadidas === 1 ? '' : 's'} nueva${anadidas === 1 ? '' : 's'} ` +
+      `(${repetidas} ya ${repetidas === 1 ? 'la tenías' : 'las tenías'}).`;
+  }
+  msg.hidden = false;
+}
+
 function abrirModalAjustes() {
   renderListaClaves();
   document.getElementById('nueva-clave-input').value = '';
+  document.getElementById('nueva-clave-resultado').hidden = true;
   document.getElementById('modal-ajustes').hidden = false;
 }
 
@@ -1471,8 +1504,18 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('form-nueva-clave').addEventListener('submit', ev => {
     ev.preventDefault();
     const input = document.getElementById('nueva-clave-input');
-    const valor = input.value.trim();
-    if (valor) { anadirGeminiKey(valor); input.value = ''; renderListaClaves(); }
+    const resultado = anadirGeminiKeys(input.value);
+    input.value = '';
+    renderListaClaves();
+    mostrarResultadoClaves(resultado);
+  });
+  // Ctrl/Cmd+Enter para enviar sin salir del textarea (Enter a secas hace
+  // salto de línea, como en cualquier caja de texto multilínea).
+  document.getElementById('nueva-clave-input').addEventListener('keydown', ev => {
+    if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+      ev.preventDefault();
+      document.getElementById('form-nueva-clave').requestSubmit();
+    }
   });
 
   cargarPlatos();

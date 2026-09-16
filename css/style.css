@@ -635,15 +635,26 @@ main {
 
 #form-nueva-clave {
   display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   gap: 0.5rem;
 }
 
-#form-nueva-clave input {
-  flex: 1;
+#form-nueva-clave textarea {
+  width: 100%;
   padding: 0.5rem 0.6rem;
   border: 1px solid var(--color-border);
   border-radius: 6px;
   font-size: 0.9rem;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 2.4rem;
+}
+
+.clave-resultado {
+  margin: -0.3rem 0 0.9rem;
+  font-size: 0.85rem;
+  color: var(--color-primary-dark);
 }
 
 .modal-botones {

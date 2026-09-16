@@ -453,24 +453,33 @@ function quitarCategoriaLocal(nombre) {
   guardarCategoriasLocales(getCategoriasLocales().filter(c => c.toLowerCase() !== nombre.toLowerCase()));
 }
 
-// ---------- Vista de familias: menú lateral + 3 columnas por turnos ----------
+// ---------- Vista de familias: menú lateral + 3 columnas ----------
 //
 // La pestaña "Platos" arranca siempre con todas las familias cerradas (no
 // se recuerda entre visitas qué tenías abierto). Cada familia que abres se
-// coloca en la siguiente de las 3 columnas, por turnos (1ª, 2ª, 3ª, otra
-// vez la 1ª pero debajo de la anterior, y así...). Al cerrar una familia
-// solo desaparece ella: las demás no se recolocan ni cambian de columna, y
-// el turno de la siguiente que abras sigue contando como si no hubiera
-// pasado nada (no se reutiliza su hueco).
+// coloca en la primera columna (de izquierda a derecha) que tenga menos
+// familias abiertas en ese momento — así, si cerraste una y dejó un hueco,
+// la siguiente que abras tiende a ocuparlo, sin tener que reordenar ni
+// mover las que ya estaban abiertas en las demás columnas.
 let familiasAbiertas = []; // [{ categoria, columna, orden }] — solo las abiertas a mano
-let contadorApertura = 0;  // nunca baja ni se reinicia al cerrar una familia
+let contadorApertura = 0;  // solo para mantener el orden dentro de cada columna
+
+function columnaConMenosFamilias() {
+  const conteos = [0, 0, 0];
+  familiasAbiertas.forEach(f => { conteos[f.columna]++; });
+  let columna = 0;
+  for (let i = 1; i < conteos.length; i++) {
+    if (conteos[i] < conteos[columna]) columna = i;
+  }
+  return columna;
+}
 
 function alternarFamilia(categoria) {
   const idx = familiasAbiertas.findIndex(f => f.categoria === categoria);
   if (idx !== -1) {
     familiasAbiertas.splice(idx, 1);
   } else {
-    familiasAbiertas.push({ categoria, columna: contadorApertura % 3, orden: contadorApertura });
+    familiasAbiertas.push({ categoria, columna: columnaConMenosFamilias(), orden: contadorApertura });
     contadorApertura++;
   }
   renderCategorias(document.getElementById('buscador').value);
@@ -800,6 +809,12 @@ function activarTab(nombre) {
   if (nombre === 'cartelitos') {
     refrescarListaLateralCartelitos();
     renderCartelitos();
+  } else if (nombre === 'platos') {
+    // Las tarjetas de "Platos" no se repintan solas mientras estás en
+    // "Cartelitos": si allí desmarcas un plato, su checkbox aquí se queda
+    // con el valor que tenía pintado hasta ahora. Al volver a esta pestaña
+    // se vuelve a pintar todo con el estado real de la selección.
+    renderCategorias(document.getElementById('buscador').value);
   }
 }
 

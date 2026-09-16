@@ -457,21 +457,30 @@ function quitarCategoriaLocal(nombre) {
 //
 // La pestaña "Platos" arranca siempre con todas las familias cerradas (no
 // se recuerda entre visitas qué tenías abierto). Cada familia que abres se
-// coloca en la primera columna (de izquierda a derecha) que tenga menos
-// familias abiertas en ese momento — así, si cerraste una y dejó un hueco,
-// la siguiente que abras tiende a ocuparlo, sin tener que reordenar ni
-// mover las que ya estaban abiertas en las demás columnas.
+// coloca en la columna que en ese momento esté más "baja" — es decir, la de
+// menos altura real en pantalla, no la que tenga menos tarjetas —, así una
+// familia con muchos platos no descompensa las columnas frente a otras con
+// pocos. Solo se decide la columna al abrirla: cerrar una familia no mueve
+// ni recoloca las demás, y la siguiente que abras se coloca mirando la
+// altura tal cual está en ese momento (huecos incluidos).
 let familiasAbiertas = []; // [{ categoria, columna, orden }] — solo las abiertas a mano
 let contadorApertura = 0;  // solo para mantener el orden dentro de cada columna
 
-function columnaConMenosFamilias() {
-  const conteos = [0, 0, 0];
-  familiasAbiertas.forEach(f => { conteos[f.columna]++; });
-  let columna = 0;
-  for (let i = 1; i < conteos.length; i++) {
-    if (conteos[i] < conteos[columna]) columna = i;
+function elementosColumnas() {
+  return [0, 1, 2].map(i => document.getElementById('columna-familias-' + i));
+}
+
+// Columna con menos altura real ahora mismo (empate → la de más a la
+// izquierda). Se basa en la altura ya pintada en el DOM, así que tiene en
+// cuenta de forma automática cuántos platos tiene cada familia, si algún
+// nombre ocupa dos líneas, el tamaño de letra elegido en "🔤 Letra", etc. —
+// no hace falta calcularlo a mano ni mantenerlo sincronizado con el CSS.
+function columnaMasBaja(columnas) {
+  let indice = 0;
+  for (let i = 1; i < columnas.length; i++) {
+    if (columnas[i].offsetHeight < columnas[indice].offsetHeight) indice = i;
   }
-  return columna;
+  return indice;
 }
 
 function alternarFamilia(categoria) {
@@ -479,7 +488,10 @@ function alternarFamilia(categoria) {
   if (idx !== -1) {
     familiasAbiertas.splice(idx, 1);
   } else {
-    familiasAbiertas.push({ categoria, columna: columnaConMenosFamilias(), orden: contadorApertura });
+    // Se mide el DOM tal como está justo ANTES de añadir esta familia (el
+    // resultado del render anterior): decide dónde va la nueva, pero no
+    // toca la posición de ninguna de las que ya estaban abiertas.
+    familiasAbiertas.push({ categoria, columna: columnaMasBaja(elementosColumnas()), orden: contadorApertura });
     contadorApertura++;
   }
   renderCategorias(document.getElementById('buscador').value);
@@ -623,34 +635,37 @@ function renderMenuCategorias(filtroLower, categoriasVisibles) {
 }
 
 function renderCategorias(filtro = '') {
-  const columnas = [0, 1, 2].map(i => document.getElementById('columna-familias-' + i));
+  const columnas = elementosColumnas();
   columnas.forEach(col => { col.innerHTML = ''; });
   const filtroLower = filtro.trim().toLowerCase();
-
-  let entradas; // [{ categoria, columna, orden }]
   const enBusqueda = !!filtroLower;
 
+  let categorias; // nombres, en el orden en que se van a ir colocando
   if (enBusqueda) {
-    // Con búsqueda, se despliegan solas (por turnos) todas las familias con
-    // resultados, sin tocar lo que tuvieras abierto a mano — al borrar el
-    // texto se vuelve a eso.
-    entradas = categoriasAlfabetico()
-      .filter(categoria => platosDeCategoria(categoria, filtroLower).length > 0)
-      .map((categoria, i) => ({ categoria, columna: i % 3, orden: i }));
+    // Con búsqueda, se despliegan solas todas las familias con resultados,
+    // sin tocar lo que tuvieras abierto a mano — al borrar el texto se
+    // vuelve a eso.
+    categorias = categoriasAlfabetico().filter(categoria => platosDeCategoria(categoria, filtroLower).length > 0);
   } else {
-    entradas = familiasAbiertas;
+    categorias = familiasAbiertas.slice().sort((a, b) => a.orden - b.orden).map(f => f.categoria);
   }
 
-  renderMenuCategorias(filtroLower, entradas.map(e => e.categoria));
+  renderMenuCategorias(filtroLower, categorias);
 
-  entradas
-    .slice()
-    .sort((a, b) => a.orden - b.orden)
-    .forEach(({ categoria, columna }) => {
-      const platosCategoria = platosDeCategoria(categoria, filtroLower);
-      const tarjeta = crearTarjetaCategoria(categoria, platosCategoria, enBusqueda);
-      columnas[columna].appendChild(tarjeta);
-    });
+  categorias.forEach(categoria => {
+    const platosCategoria = platosDeCategoria(categoria, filtroLower);
+    const tarjeta = crearTarjetaCategoria(categoria, platosCategoria, enBusqueda);
+
+    // Fuera de búsqueda, la columna ya quedó fijada al abrir la familia (ver
+    // alternarFamilia): no se recalcula en cada render para no mover nada.
+    // En búsqueda, como la vista entera se recalcula a cada tecla, se reparte
+    // sobre la marcha por altura real según se van montando las tarjetas.
+    const columnaDestino = enBusqueda
+      ? columnaMasBaja(columnas)
+      : familiasAbiertas.find(f => f.categoria === categoria).columna;
+
+    columnas[columnaDestino].appendChild(tarjeta);
+  });
 }
 
 function alternarSeleccion(id, marcado) {

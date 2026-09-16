@@ -233,6 +233,9 @@ main {
 #categorias-columnas {
   flex: 1;
   display: flex;
+  align-items: flex-start; /* si no, las 3 columnas se estiran a la altura de la
+                               más alta (comportamiento flex por defecto) y la
+                               web no puede medir cuál está realmente más baja */
   gap: 1.5rem;
   min-width: 0;
 }

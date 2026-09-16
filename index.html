@@ -32,14 +32,20 @@
 
     <div class="toolbar no-print">
       <input type="search" id="buscador" placeholder="Buscar plato...">
-      <button id="btn-modo-acordeon" class="btn secundario btn-toggle" type="button" aria-pressed="false" title="Plegar las familias y desplegar solo la que pulses">📂 Vista acordeón</button>
       <button id="btn-recargar" class="btn secundario">Recargar de la hoja</button>
       <button id="btn-limpiar-seleccion" class="btn secundario">Vaciar selección de hoy</button>
     </div>
 
     <div id="estado-carga" class="estado">Cargando platos...</div>
 
-    <div id="categorias-container"></div>
+    <div id="categorias-layout">
+      <nav id="categorias-menu" class="no-print" aria-label="Familias"></nav>
+      <div id="categorias-columnas">
+        <div class="columna-familias" id="columna-familias-0"></div>
+        <div class="columna-familias" id="columna-familias-1"></div>
+        <div class="columna-familias" id="columna-familias-2"></div>
+      </div>
+    </div>
 
     <button id="btn-nueva-categoria-flotante" class="btn-flotante no-print" type="button" title="Crear categoría nueva">+</button>
 

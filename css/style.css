@@ -168,35 +168,118 @@ main {
   font-size: 0.8rem;
 }
 
-.btn-toggle[aria-pressed="true"] {
+/* ---------- Menú de familias + columnas ---------- */
+/*
+ * La pestaña "Platos" tiene un menú lateral (nombres de familia, orden
+ * alfabético, ancho ajustado al texto más largo) y a su derecha 3 columnas
+ * donde se van desplegando las familias que vas pulsando, por turnos: la
+ * 1ª pulsada va a la columna 1, la 2ª a la columna 2, la 3ª a la columna 3,
+ * la 4ª otra vez a la columna 1 (debajo de la 1ª), etc. Cerrar una familia
+ * solo la quita a ella; las demás no se recolocan.
+ */
+#categorias-layout {
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+}
+
+#categorias-menu {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  position: sticky;
+  top: 1rem;
+}
+
+.categoria-menu-item {
+  display: block;
+  width: 100%;
+  white-space: nowrap;
+  text-align: left;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.9rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--color-text);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.categoria-menu-item:hover:not(:disabled) {
+  background: #f4efe4;
+}
+
+.categoria-menu-item.activa {
   background: var(--color-primary);
-  color: #fff;
   border-color: var(--color-primary);
+  color: #fff;
+}
+
+/* Más específica que ".categoria-menu-item:hover:not(:disabled)" a propósito:
+   si no, al pasar el ratón por encima de una familia ya abierta, el hover
+   "ganaba" y se veía pálida en vez de mantenerse resaltada. */
+.categoria-menu-item.activa:hover:not(:disabled) {
+  background: var(--color-primary);
+}
+
+.categoria-menu-item:disabled {
+  cursor: default;
+  opacity: 0.55;
+}
+
+#categorias-columnas {
+  flex: 1;
+  display: flex;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.columna-familias {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (max-width: 800px) {
+  #categorias-layout {
+    flex-direction: column;
+  }
+
+  #categorias-menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+    position: static;
+    width: 100%;
+  }
+
+  .categoria-menu-item {
+    width: auto;
+  }
+
+  #categorias-columnas {
+    flex-direction: column;
+  }
 }
 
 /* ---------- Categorías / lista de platos ---------- */
-
-/* Las categorías se reparten en columnas sin partir ninguna por la mitad:
-   el navegador las va colocando en el orden de CONFIG.CATEGORIAS, columna
-   a columna, intentando que todas terminen con una altura similar.
-   Se usa "column-width" (ancho ideal) en vez de fijar "column-count" a un
-   número: así el propio navegador añade una tercera columna, una cuarta...
-   según lo ancha que esté la pantalla, en vez de dejar huecos fijos a los
-   lados en monitores grandes. */
-#categorias-container {
-  column-width: 440px;
-  column-gap: 1.5rem;
-}
 
 .categoria-bloque {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  margin-bottom: 1rem;
   overflow: hidden;
-  break-inside: avoid;
-  -webkit-column-break-inside: avoid;
+  animation: categoria-aparece 0.15s ease;
+}
+
+@keyframes categoria-aparece {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .categoria-cabecera {
@@ -214,30 +297,6 @@ main {
   color: var(--color-primary-dark);
 }
 
-.categoria-cabecera-titulo {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 0;
-}
-
-.categoria-cabecera-titulo.clicable {
-  cursor: pointer;
-  user-select: none;
-}
-
-.categoria-flecha {
-  display: inline-block;
-  flex-shrink: 0;
-  font-size: 0.85rem;
-  color: var(--color-primary-dark);
-  transition: transform 0.2s ease;
-}
-
-.categoria-bloque:not(.colapsada) .categoria-flecha {
-  transform: rotate(90deg);
-}
-
 .categoria-cabecera-acciones {
   display: flex;
   align-items: center;
@@ -245,30 +304,7 @@ main {
   flex-shrink: 0;
 }
 
-/* El "wrap" es el que anima el plegado (truco de grid-template-rows: pasa
-   de 1fr a 0fr con transición, sin tener que calcular alturas en JS). El
-   overflow:hidden va en el hijo para que el contenido no se vea mientras
-   se colapsa. */
-.categoria-lista-wrap {
-  display: grid;
-  grid-template-rows: 1fr;
-  transition: grid-template-rows 0.22s ease;
-}
-
-.categoria-bloque.colapsada .categoria-lista-wrap {
-  grid-template-rows: 0fr;
-}
-
-/* El padding va en el "inner", no en ".categoria-lista" (el hijo directo del
-   grid): si el padding estuviera en el propio hijo de grid, su caja nunca
-   podría bajar de esa altura aunque el contenido esté con overflow:hidden,
-   y se quedaría un hueco/sliver de texto asomando al colapsar. */
-.categoria-lista-wrap > .categoria-lista {
-  overflow: hidden;
-  min-height: 0;
-}
-
-.categoria-lista-inner {
+.categoria-lista {
   padding: 0.4rem 1.1rem 0.9rem;
 }
 

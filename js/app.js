@@ -19,7 +19,6 @@ const LS_PENDIENTES = 'cartelitos-pendientes'; // altas y ediciones aún no conf
 const LS_BORRADOS = 'cartelitos-borrados';     // bajas aún no confirmadas en el CSV
 const LS_TIPOGRAFIA = 'cartelitos-tipografia';
 const LS_FORMATO_TEXTO = 'cartelitos-formatoTexto';
-const LS_MODO_ACORDEON = 'cartelitos-modoAcordeon';
 const PENDIENTE_TTL_MS = 10 * 60 * 1000; // 10 minutos: tiempo de sobra para que el CSV publicado se actualice
 
 let platos = [];
@@ -454,28 +453,27 @@ function quitarCategoriaLocal(nombre) {
   guardarCategoriasLocales(getCategoriasLocales().filter(c => c.toLowerCase() !== nombre.toLowerCase()));
 }
 
-// ---------- Vista acordeón (plegar/desplegar familias) ----------
+// ---------- Vista de familias: menú lateral + 3 columnas por turnos ----------
 //
-// El check "activo/inactivo" se recuerda en este navegador (como el resto
-// de ajustes). Qué familias están abiertas NO se guarda: cada vez que se
-// activa el modo (al pulsar el botón, o al recargar la página con el modo
-// ya activo) todas empiezan colapsadas, y el usuario va abriendo las que
-// le interesan mientras dura esa visita.
-function getModoAcordeon() {
-  return localStorage.getItem(LS_MODO_ACORDEON) === '1';
-}
+// La pestaña "Platos" arranca siempre con todas las familias cerradas (no
+// se recuerda entre visitas qué tenías abierto). Cada familia que abres se
+// coloca en la siguiente de las 3 columnas, por turnos (1ª, 2ª, 3ª, otra
+// vez la 1ª pero debajo de la anterior, y así...). Al cerrar una familia
+// solo desaparece ella: las demás no se recolocan ni cambian de columna, y
+// el turno de la siguiente que abras sigue contando como si no hubiera
+// pasado nada (no se reutiliza su hueco).
+let familiasAbiertas = []; // [{ categoria, columna, orden }] — solo las abiertas a mano
+let contadorApertura = 0;  // nunca baja ni se reinicia al cerrar una familia
 
-function guardarModoAcordeon(activo) {
-  localStorage.setItem(LS_MODO_ACORDEON, activo ? '1' : '0');
-}
-
-let modoAcordeon = getModoAcordeon();
-const categoriasAbiertas = new Set(); // en memoria; siempre vacío al cargar la página
-
-function actualizarBotonAcordeon() {
-  const btn = document.getElementById('btn-modo-acordeon');
-  if (!btn) return;
-  btn.setAttribute('aria-pressed', String(modoAcordeon));
+function alternarFamilia(categoria) {
+  const idx = familiasAbiertas.findIndex(f => f.categoria === categoria);
+  if (idx !== -1) {
+    familiasAbiertas.splice(idx, 1);
+  } else {
+    familiasAbiertas.push({ categoria, columna: contadorApertura % 3, orden: contadorApertura });
+    contadorApertura++;
+  }
+  renderCategorias(document.getElementById('buscador').value);
 }
 
 // ---------- Render: pestaña Platos ----------
@@ -491,131 +489,159 @@ function categoriasOrdenadas() {
   return [...enConfig, ...extra];
 }
 
-function renderCategorias(filtro = '') {
-  const contenedor = document.getElementById('categorias-container');
-  contenedor.innerHTML = '';
+// El menú lateral se lista alfabéticamente (a diferencia del resto de sitios
+// donde se usa el orden "de cocina" de CONFIG.CATEGORIAS, p.ej. en los
+// cartelitos impresos).
+function categoriasAlfabetico() {
+  return categoriasOrdenadas().slice().sort((a, b) => a.localeCompare(b, 'es'));
+}
+
+function platosDeCategoria(categoria, filtroLower) {
+  return platos
+    .filter(p => p.categoria === categoria)
+    .filter(p =>
+      !filtroLower ||
+      p.nombre_es.toLowerCase().includes(filtroLower) ||
+      (p.nombre_en || '').toLowerCase().includes(filtroLower)
+    )
+    .sort((a, b) => a.nombre_es.localeCompare(b.nombre_es, 'es'));
+}
+
+function crearTarjetaCategoria(categoria, platosCategoria, enBusqueda) {
   const tplItem = document.getElementById('tpl-plato-item');
+  const bloque = document.createElement('div');
+  bloque.className = 'categoria-bloque';
+
+  const cabecera = document.createElement('div');
+  cabecera.className = 'categoria-cabecera';
+  const tituloCategoria = document.createElement('h2');
+  tituloCategoria.textContent = categoria;
+  cabecera.appendChild(tituloCategoria);
+
+  const acciones = document.createElement('div');
+  acciones.className = 'categoria-cabecera-acciones no-print';
+
+  // Solo se puede borrar una categoría vacía (sin ningún plato todavía) y
+  // que además sea de las creadas con el botón + flotante — las que vienen
+  // de CONFIG.CATEGORIAS o ya tienen algún plato guardado no se pueden
+  // borrar desde aquí.
+  const esCategoriaVacia = !platos.some(p => p.categoria === categoria);
+  const esCategoriaLocal = getCategoriasLocales().some(c => c.toLowerCase() === categoria.toLowerCase());
+  if (esCategoriaVacia && esCategoriaLocal) {
+    const btnBorrarCategoria = document.createElement('button');
+    btnBorrarCategoria.className = 'btn-icono';
+    btnBorrarCategoria.title = 'Quitar esta categoría vacía';
+    btnBorrarCategoria.textContent = '🗑️';
+    btnBorrarCategoria.addEventListener('click', () => {
+      quitarCategoriaLocal(categoria);
+      renderTodo();
+    });
+    acciones.appendChild(btnBorrarCategoria);
+  }
+
+  const btnAnadir = document.createElement('button');
+  btnAnadir.className = 'btn pequeno secundario';
+  btnAnadir.textContent = '+ Añadir plato';
+  btnAnadir.addEventListener('click', () => abrirModalNuevoPlato(categoria));
+  acciones.appendChild(btnAnadir);
+
+  // Mientras hay una búsqueda en marcha es ella la que decide qué se ve, así
+  // que no tiene sentido ofrecer un botón para cerrar la tarjeta a mano.
+  if (!enBusqueda) {
+    const btnCerrar = document.createElement('button');
+    btnCerrar.className = 'btn-icono';
+    btnCerrar.title = 'Cerrar esta familia';
+    btnCerrar.textContent = '✕';
+    btnCerrar.addEventListener('click', () => alternarFamilia(categoria));
+    acciones.appendChild(btnCerrar);
+  }
+
+  cabecera.appendChild(acciones);
+
+  const lista = document.createElement('div');
+  lista.className = 'categoria-lista';
+
+  if (platosCategoria.length === 0) {
+    const vacio = document.createElement('div');
+    vacio.className = 'categoria-vacia';
+    vacio.textContent = 'Todavía no hay platos en esta categoría.';
+    lista.appendChild(vacio);
+  } else {
+    platosCategoria.forEach(plato => {
+      const nodo = tplItem.content.cloneNode(true);
+      const checkbox = nodo.querySelector('.plato-checkbox');
+      checkbox.checked = seleccion.has(plato.id);
+      checkbox.addEventListener('change', () => alternarSeleccion(plato.id, checkbox.checked));
+      nodo.querySelector('.plato-es').textContent = plato.nombre_es;
+      nodo.querySelector('.plato-en').textContent = plato.nombre_en || '';
+      nodo.querySelector('.btn-editar-plato').addEventListener('click', () => abrirModalEditarPlato(plato));
+      nodo.querySelector('.btn-borrar-plato').addEventListener('click', () => borrarPlato(plato));
+      lista.appendChild(nodo);
+    });
+  }
+
+  bloque.appendChild(cabecera);
+  bloque.appendChild(lista);
+  return bloque;
+}
+
+function renderMenuCategorias(filtroLower, categoriasVisibles) {
+  const menu = document.getElementById('categorias-menu');
+  menu.innerHTML = '';
+  const visiblesSet = new Set(categoriasVisibles);
+
+  categoriasAlfabetico().forEach(categoria => {
+    // Con el buscador activo, el menú solo lista las familias con resultados.
+    if (filtroLower && !visiblesSet.has(categoria)) return;
+
+    const item = document.createElement('button');
+    item.type = 'button';
+    item.className = 'categoria-menu-item';
+    item.textContent = categoria;
+
+    const abierta = visiblesSet.has(categoria);
+    item.classList.toggle('activa', abierta);
+    item.setAttribute('aria-expanded', String(abierta));
+
+    if (filtroLower) {
+      // Mientras buscas, es el propio buscador el que abre/cierra familias.
+      item.disabled = true;
+    } else {
+      item.addEventListener('click', () => alternarFamilia(categoria));
+    }
+    menu.appendChild(item);
+  });
+}
+
+function renderCategorias(filtro = '') {
+  const columnas = [0, 1, 2].map(i => document.getElementById('columna-familias-' + i));
+  columnas.forEach(col => { col.innerHTML = ''; });
   const filtroLower = filtro.trim().toLowerCase();
 
-  categoriasOrdenadas().forEach(categoria => {
-    const platosCategoria = platos
-      .filter(p => p.categoria === categoria)
-      .filter(p =>
-        !filtroLower ||
-        p.nombre_es.toLowerCase().includes(filtroLower) ||
-        (p.nombre_en || '').toLowerCase().includes(filtroLower)
-      )
-      .sort((a, b) => a.nombre_es.localeCompare(b.nombre_es, 'es'));
+  let entradas; // [{ categoria, columna, orden }]
+  const enBusqueda = !!filtroLower;
 
-    if (filtroLower && platosCategoria.length === 0) return;
+  if (enBusqueda) {
+    // Con búsqueda, se despliegan solas (por turnos) todas las familias con
+    // resultados, sin tocar lo que tuvieras abierto a mano — al borrar el
+    // texto se vuelve a eso.
+    entradas = categoriasAlfabetico()
+      .filter(categoria => platosDeCategoria(categoria, filtroLower).length > 0)
+      .map((categoria, i) => ({ categoria, columna: i % 3, orden: i }));
+  } else {
+    entradas = familiasAbiertas;
+  }
 
-    // Con el modo acordeón activo, una categoría está desplegada si el
-    // usuario la ha abierto a mano, o si hay un texto de búsqueda en marcha
-    // (en ese caso todas las que tengan resultados se ven abiertas, para no
-    // tener que ir abriéndolas una a una mientras buscas).
-    const estaAbierta = !modoAcordeon || !!filtroLower || categoriasAbiertas.has(categoria);
+  renderMenuCategorias(filtroLower, entradas.map(e => e.categoria));
 
-    const bloque = document.createElement('div');
-    bloque.className = 'categoria-bloque';
-    if (modoAcordeon && !estaAbierta) bloque.classList.add('colapsada');
-
-    const cabecera = document.createElement('div');
-    cabecera.className = 'categoria-cabecera';
-
-    const tituloCategoria = document.createElement('h2');
-    tituloCategoria.textContent = categoria;
-
-    const cabeceraTitulo = document.createElement('div');
-    cabeceraTitulo.className = 'categoria-cabecera-titulo';
-    if (modoAcordeon) {
-      cabeceraTitulo.classList.add('clicable');
-      cabeceraTitulo.setAttribute('role', 'button');
-      cabeceraTitulo.setAttribute('tabindex', '0');
-      cabeceraTitulo.setAttribute('aria-expanded', String(estaAbierta));
-      const flecha = document.createElement('span');
-      flecha.className = 'categoria-flecha';
-      flecha.setAttribute('aria-hidden', 'true');
-      flecha.textContent = '▸';
-      cabeceraTitulo.appendChild(flecha);
-      const alternarCategoria = () => {
-        if (categoriasAbiertas.has(categoria)) categoriasAbiertas.delete(categoria);
-        else categoriasAbiertas.add(categoria);
-        renderCategorias(document.getElementById('buscador').value);
-      };
-      cabeceraTitulo.addEventListener('click', alternarCategoria);
-      cabeceraTitulo.addEventListener('keydown', ev => {
-        if (ev.key === 'Enter' || ev.key === ' ') {
-          ev.preventDefault();
-          alternarCategoria();
-        }
-      });
-    }
-    cabeceraTitulo.appendChild(tituloCategoria);
-    cabecera.appendChild(cabeceraTitulo);
-
-    const acciones = document.createElement('div');
-    acciones.className = 'categoria-cabecera-acciones no-print';
-
-    // Solo se puede borrar una categoría vacía (sin ningún plato todavía, ni
-    // siquiera oculto por el buscador) y que además sea de las creadas con
-    // el botón + flotante — las que vienen de CONFIG.CATEGORIAS o ya tienen
-    // algún plato guardado no se pueden borrar desde aquí.
-    const esCategoriaVacia = !platos.some(p => p.categoria === categoria);
-    const esCategoriaLocal = getCategoriasLocales().some(c => c.toLowerCase() === categoria.toLowerCase());
-    if (esCategoriaVacia && esCategoriaLocal) {
-      const btnBorrarCategoria = document.createElement('button');
-      btnBorrarCategoria.className = 'btn-icono';
-      btnBorrarCategoria.title = 'Quitar esta categoría vacía';
-      btnBorrarCategoria.textContent = '🗑️';
-      btnBorrarCategoria.addEventListener('click', () => {
-        quitarCategoriaLocal(categoria);
-        renderTodo();
-      });
-      acciones.appendChild(btnBorrarCategoria);
-    }
-
-    const btnAnadir = document.createElement('button');
-    btnAnadir.className = 'btn pequeno secundario';
-    btnAnadir.textContent = '+ Añadir plato';
-    btnAnadir.addEventListener('click', () => abrirModalNuevoPlato(categoria));
-    acciones.appendChild(btnAnadir);
-
-    cabecera.appendChild(acciones);
-
-    const lista = document.createElement('div');
-    lista.className = 'categoria-lista';
-
-    const listaInner = document.createElement('div');
-    listaInner.className = 'categoria-lista-inner';
-    lista.appendChild(listaInner);
-
-    if (platosCategoria.length === 0) {
-      const vacio = document.createElement('div');
-      vacio.className = 'categoria-vacia';
-      vacio.textContent = 'Todavía no hay platos en esta categoría.';
-      listaInner.appendChild(vacio);
-    } else {
-      platosCategoria.forEach(plato => {
-        const nodo = tplItem.content.cloneNode(true);
-        const checkbox = nodo.querySelector('.plato-checkbox');
-        checkbox.checked = seleccion.has(plato.id);
-        checkbox.addEventListener('change', () => alternarSeleccion(plato.id, checkbox.checked));
-        nodo.querySelector('.plato-es').textContent = plato.nombre_es;
-        nodo.querySelector('.plato-en').textContent = plato.nombre_en || '';
-        nodo.querySelector('.btn-editar-plato').addEventListener('click', () => abrirModalEditarPlato(plato));
-        nodo.querySelector('.btn-borrar-plato').addEventListener('click', () => borrarPlato(plato));
-        listaInner.appendChild(nodo);
-      });
-    }
-
-    const listaWrap = document.createElement('div');
-    listaWrap.className = 'categoria-lista-wrap';
-    listaWrap.appendChild(lista);
-
-    bloque.appendChild(cabecera);
-    bloque.appendChild(listaWrap);
-    contenedor.appendChild(bloque);
-  });
+  entradas
+    .slice()
+    .sort((a, b) => a.orden - b.orden)
+    .forEach(({ categoria, columna }) => {
+      const platosCategoria = platosDeCategoria(categoria, filtroLower);
+      const tarjeta = crearTarjetaCategoria(categoria, platosCategoria, enBusqueda);
+      columnas[columna].appendChild(tarjeta);
+    });
 }
 
 function alternarSeleccion(id, marcado) {
@@ -1304,15 +1330,6 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('buscador').addEventListener('input', ev => renderCategorias(ev.target.value));
 
   document.getElementById('btn-recargar').addEventListener('click', cargarPlatos);
-
-  actualizarBotonAcordeon();
-  document.getElementById('btn-modo-acordeon').addEventListener('click', () => {
-    modoAcordeon = !modoAcordeon;
-    guardarModoAcordeon(modoAcordeon);
-    categoriasAbiertas.clear();
-    actualizarBotonAcordeon();
-    renderCategorias(document.getElementById('buscador').value);
-  });
 
   document.getElementById('btn-limpiar-seleccion').addEventListener('click', () => {
     if (!confirm('¿Vaciar la selección de hoy?')) return;

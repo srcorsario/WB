@@ -168,6 +168,12 @@ main {
   font-size: 0.8rem;
 }
 
+.btn-toggle[aria-pressed="true"] {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
 /* ---------- Categorías / lista de platos ---------- */
 
 /* Las categorías se reparten en columnas sin partir ninguna por la mitad:
@@ -208,6 +214,30 @@ main {
   color: var(--color-primary-dark);
 }
 
+.categoria-cabecera-titulo {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.categoria-cabecera-titulo.clicable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.categoria-flecha {
+  display: inline-block;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  color: var(--color-primary-dark);
+  transition: transform 0.2s ease;
+}
+
+.categoria-bloque:not(.colapsada) .categoria-flecha {
+  transform: rotate(90deg);
+}
+
 .categoria-cabecera-acciones {
   display: flex;
   align-items: center;
@@ -215,7 +245,30 @@ main {
   flex-shrink: 0;
 }
 
-.categoria-lista {
+/* El "wrap" es el que anima el plegado (truco de grid-template-rows: pasa
+   de 1fr a 0fr con transición, sin tener que calcular alturas en JS). El
+   overflow:hidden va en el hijo para que el contenido no se vea mientras
+   se colapsa. */
+.categoria-lista-wrap {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 0.22s ease;
+}
+
+.categoria-bloque.colapsada .categoria-lista-wrap {
+  grid-template-rows: 0fr;
+}
+
+/* El padding va en el "inner", no en ".categoria-lista" (el hijo directo del
+   grid): si el padding estuviera en el propio hijo de grid, su caja nunca
+   podría bajar de esa altura aunque el contenido esté con overflow:hidden,
+   y se quedaría un hueco/sliver de texto asomando al colapsar. */
+.categoria-lista-wrap > .categoria-lista {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.categoria-lista-inner {
   padding: 0.4rem 1.1rem 0.9rem;
 }
 

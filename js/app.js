@@ -19,6 +19,7 @@ const LS_PENDIENTES = 'cartelitos-pendientes'; // altas y ediciones aún no conf
 const LS_BORRADOS = 'cartelitos-borrados';     // bajas aún no confirmadas en el CSV
 const LS_TIPOGRAFIA = 'cartelitos-tipografia';
 const LS_FORMATO_TEXTO = 'cartelitos-formatoTexto';
+const LS_MODO_ACORDEON = 'cartelitos-modoAcordeon';
 const PENDIENTE_TTL_MS = 10 * 60 * 1000; // 10 minutos: tiempo de sobra para que el CSV publicado se actualice
 
 let platos = [];
@@ -453,6 +454,30 @@ function quitarCategoriaLocal(nombre) {
   guardarCategoriasLocales(getCategoriasLocales().filter(c => c.toLowerCase() !== nombre.toLowerCase()));
 }
 
+// ---------- Vista acordeón (plegar/desplegar familias) ----------
+//
+// El check "activo/inactivo" se recuerda en este navegador (como el resto
+// de ajustes). Qué familias están abiertas NO se guarda: cada vez que se
+// activa el modo (al pulsar el botón, o al recargar la página con el modo
+// ya activo) todas empiezan colapsadas, y el usuario va abriendo las que
+// le interesan mientras dura esa visita.
+function getModoAcordeon() {
+  return localStorage.getItem(LS_MODO_ACORDEON) === '1';
+}
+
+function guardarModoAcordeon(activo) {
+  localStorage.setItem(LS_MODO_ACORDEON, activo ? '1' : '0');
+}
+
+let modoAcordeon = getModoAcordeon();
+const categoriasAbiertas = new Set(); // en memoria; siempre vacío al cargar la página
+
+function actualizarBotonAcordeon() {
+  const btn = document.getElementById('btn-modo-acordeon');
+  if (!btn) return;
+  btn.setAttribute('aria-pressed', String(modoAcordeon));
+}
+
 // ---------- Render: pestaña Platos ----------
 
 function categoriasOrdenadas() {
@@ -484,14 +509,49 @@ function renderCategorias(filtro = '') {
 
     if (filtroLower && platosCategoria.length === 0) return;
 
+    // Con el modo acordeón activo, una categoría está desplegada si el
+    // usuario la ha abierto a mano, o si hay un texto de búsqueda en marcha
+    // (en ese caso todas las que tengan resultados se ven abiertas, para no
+    // tener que ir abriéndolas una a una mientras buscas).
+    const estaAbierta = !modoAcordeon || !!filtroLower || categoriasAbiertas.has(categoria);
+
     const bloque = document.createElement('div');
     bloque.className = 'categoria-bloque';
+    if (modoAcordeon && !estaAbierta) bloque.classList.add('colapsada');
 
     const cabecera = document.createElement('div');
     cabecera.className = 'categoria-cabecera';
+
     const tituloCategoria = document.createElement('h2');
     tituloCategoria.textContent = categoria;
-    cabecera.appendChild(tituloCategoria);
+
+    const cabeceraTitulo = document.createElement('div');
+    cabeceraTitulo.className = 'categoria-cabecera-titulo';
+    if (modoAcordeon) {
+      cabeceraTitulo.classList.add('clicable');
+      cabeceraTitulo.setAttribute('role', 'button');
+      cabeceraTitulo.setAttribute('tabindex', '0');
+      cabeceraTitulo.setAttribute('aria-expanded', String(estaAbierta));
+      const flecha = document.createElement('span');
+      flecha.className = 'categoria-flecha';
+      flecha.setAttribute('aria-hidden', 'true');
+      flecha.textContent = '▸';
+      cabeceraTitulo.appendChild(flecha);
+      const alternarCategoria = () => {
+        if (categoriasAbiertas.has(categoria)) categoriasAbiertas.delete(categoria);
+        else categoriasAbiertas.add(categoria);
+        renderCategorias(document.getElementById('buscador').value);
+      };
+      cabeceraTitulo.addEventListener('click', alternarCategoria);
+      cabeceraTitulo.addEventListener('keydown', ev => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          alternarCategoria();
+        }
+      });
+    }
+    cabeceraTitulo.appendChild(tituloCategoria);
+    cabecera.appendChild(cabeceraTitulo);
 
     const acciones = document.createElement('div');
     acciones.className = 'categoria-cabecera-acciones no-print';
@@ -525,11 +585,15 @@ function renderCategorias(filtro = '') {
     const lista = document.createElement('div');
     lista.className = 'categoria-lista';
 
+    const listaInner = document.createElement('div');
+    listaInner.className = 'categoria-lista-inner';
+    lista.appendChild(listaInner);
+
     if (platosCategoria.length === 0) {
       const vacio = document.createElement('div');
       vacio.className = 'categoria-vacia';
       vacio.textContent = 'Todavía no hay platos en esta categoría.';
-      lista.appendChild(vacio);
+      listaInner.appendChild(vacio);
     } else {
       platosCategoria.forEach(plato => {
         const nodo = tplItem.content.cloneNode(true);
@@ -540,12 +604,16 @@ function renderCategorias(filtro = '') {
         nodo.querySelector('.plato-en').textContent = plato.nombre_en || '';
         nodo.querySelector('.btn-editar-plato').addEventListener('click', () => abrirModalEditarPlato(plato));
         nodo.querySelector('.btn-borrar-plato').addEventListener('click', () => borrarPlato(plato));
-        lista.appendChild(nodo);
+        listaInner.appendChild(nodo);
       });
     }
 
+    const listaWrap = document.createElement('div');
+    listaWrap.className = 'categoria-lista-wrap';
+    listaWrap.appendChild(lista);
+
     bloque.appendChild(cabecera);
-    bloque.appendChild(lista);
+    bloque.appendChild(listaWrap);
     contenedor.appendChild(bloque);
   });
 }
@@ -1236,6 +1304,15 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('buscador').addEventListener('input', ev => renderCategorias(ev.target.value));
 
   document.getElementById('btn-recargar').addEventListener('click', cargarPlatos);
+
+  actualizarBotonAcordeon();
+  document.getElementById('btn-modo-acordeon').addEventListener('click', () => {
+    modoAcordeon = !modoAcordeon;
+    guardarModoAcordeon(modoAcordeon);
+    categoriasAbiertas.clear();
+    actualizarBotonAcordeon();
+    renderCategorias(document.getElementById('buscador').value);
+  });
 
   document.getElementById('btn-limpiar-seleccion').addEventListener('click', () => {
     if (!confirm('¿Vaciar la selección de hoy?')) return;

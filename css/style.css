@@ -1042,3 +1042,5 @@ main {
 @media print { .cartelito-categoria { display: none !important; } }
 
 .import-sin-cat { border: 2px solid #c0392b; }
+
+.badge-alergenos { display: inline-block; margin-left: 0.5rem; padding: 1px 6px; border-radius: 8px; background: #fdebd0; color: #b9770e; border: 1px solid #f0c27b; font-size: 0.65rem; font-weight: 600; vertical-align: middle; }

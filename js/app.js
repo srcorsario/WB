@@ -613,6 +613,13 @@ function crearTarjetaCategoria(categoria, platosCategoria, enBusqueda) {
       checkbox.checked = seleccion.has(plato.id);
       checkbox.addEventListener('change', () => alternarSeleccion(plato.id, checkbox.checked));
       nodo.querySelector('.plato-es').textContent = plato.nombre_es;
+      if (plato.alergenos_es || plato.alergenos_en) {
+        const b = document.createElement('span');
+        b.className = 'badge-alergenos';
+        b.textContent = 'Alérgenos';
+        b.title = (plato.alergenos_es || '') + (plato.alergenos_en ? '\n' + plato.alergenos_en : '');
+        nodo.querySelector('.plato-es').appendChild(b);
+      }
       nodo.querySelector('.plato-en').textContent = plato.nombre_en || '';
       nodo.querySelector('.btn-editar-plato').addEventListener('click', () => abrirModalEditarPlato(plato));
       nodo.querySelector('.btn-borrar-plato').addEventListener('click', () => borrarPlato(plato));

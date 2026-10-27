@@ -85,7 +85,7 @@ function parsearListaPlatos(texto) {
   return [...porNombre.values()];
 }
 
-async function traducirListaConGemini(nombres) {
+async function traducirListaConGemini(nombres, categorias) {
   const keys = getGeminiKeys();
   if (!keys.length) throw new Error('No hay ninguna clave de Gemini. Pulsa "⚙️ Traducción" para añadir una.');
   const prompt = 'Traduce al inglés estos nombres de platos de un buffet de hotel/restaurante (español, Mallorca), para cartelitos. ' +
@@ -93,7 +93,10 @@ async function traducirListaConGemini(nombres) {
     'Si el nombre usa una palabra de cocina española/regional que NO sea universalmente conocida en inglés ' +
     '(p. ej. "coca", "ensaimada", "cocarroi", "trampó", "empanada" sí se deja), mantenla y añade una breve explicación en inglés sencillo: "<Nombre>, <descripción breve>". ' +
     'Marcas o nombres propios se dejan igual. ' +
-    'Responde ÚNICAMENTE con un array JSON de strings, del mismo tamaño y orden que la lista, sin texto adicional. Lista: ' +
+    (categorias ? 'Además asigna a cada plato la categoría más adecuada de esta lista cerrada (copia el texto exacto): ' + JSON.stringify(categorias) + '. ' +
+      'Ojo: dulces, bollería, trenzas, cocas dulces, ensaimadas, magdalenas → postres (si existe); empanadas, cocas saladas, conos → entrantes (si existe). ' : '') +
+    'Responde ÚNICAMENTE con un array JSON del mismo tamaño y orden que la lista, sin texto adicional, ' +
+    (categorias ? 'donde cada elemento es {"en":"traducción","cat":"categoría"}. ' : 'donde cada elemento es un string con la traducción. ') + 'Lista: ' +
     JSON.stringify(nombres);
   let ultimoError = '';
   for (const key of keys) {
@@ -108,7 +111,12 @@ async function traducirListaConGemini(nombres) {
       const txt = (data.candidates?.[0]?.content?.parts?.[0]?.text || '').replace(/```json|```/g, '');
       const m = txt.match(/\[[\s\S]*\]/);
       const arr = m ? JSON.parse(m[0]) : null;
-      if (Array.isArray(arr) && arr.length === nombres.length) return arr.map(x => String(x).trim().replace(/\.$/, ''));
+      if (Array.isArray(arr) && arr.length === nombres.length) {
+        return arr.map(x => {
+          const o = (x && typeof x === 'object') ? x : { en: x };
+          return { en: String(o.en || '').trim().replace(/\.$/, ''), cat: String(o.cat || '').trim() };
+        });
+      }
       ultimoError = 'Respuesta de Gemini no válida.';
     } catch (e) { ultimoError = e.message; }
   }
@@ -120,6 +128,7 @@ let importFilas = [];
 function abrirModalImportar() {
   const sel = document.getElementById('import-categoria');
   sel.innerHTML = '';
+  sel.add(new Option('🤖 Automática (la IA reparte según el plato)', '__auto__'));
   categoriasOrdenadas().forEach(c => sel.add(new Option(c, c)));
   document.getElementById('import-texto').value = '';
   document.getElementById('import-error').hidden = true;
@@ -143,6 +152,9 @@ async function analizarListaImportar() {
   mostrarErrorImport('');
   const lista = parsearListaPlatos(document.getElementById('import-texto').value);
   if (!lista.length) { mostrarErrorImport('Pega al menos un plato.'); return; }
+  const catSel = document.getElementById('import-categoria').value;
+  const auto = catSel === '__auto__';
+  const cats = categoriasOrdenadas();
   const existentes = new Set(platos.map(p => sinAcentos(p.nombre_es)));
   const btn = document.getElementById('btn-import-analizar');
   btn.disabled = true;
@@ -152,15 +164,15 @@ async function analizarListaImportar() {
     const TAM = 25;
     for (let i = 0; i < lista.length; i += TAM) {
       const trozo = lista.slice(i, i + TAM);
-      const en = await traducirListaConGemini(trozo.map(p => p.nombre_es));
-      trozo.forEach((p, j) => { p.nombre_en = en[j]; });
+      const res = await traducirListaConGemini(trozo.map(p => p.nombre_es), auto ? cats : null);
+      trozo.forEach((p, j) => { p.nombre_en = res[j].en; p.categoria = res[j].cat; });
     }
   } catch (e) {
     aviso = 'No se pudo traducir todo (' + e.message + '). Rellena a mano los ingleses vacíos o vuelve a intentarlo.';
   }
   btn.disabled = false;
   btn.textContent = 'Analizar y traducir';
-  importFilas = lista.map(p => ({ ...p, existe: existentes.has(sinAcentos(p.nombre_es)) }));
+  importFilas = lista.map(p => ({ ...p, categoria: auto ? (cats.includes(p.categoria) ? p.categoria : cats[0]) : catSel, existe: existentes.has(sinAcentos(p.nombre_es)) }));
   renderPreviewImportar();
   mostrarErrorImport(aviso);
   document.getElementById('import-paso1').hidden = true;
@@ -190,6 +202,13 @@ function renderPreviewImportar() {
     chk.addEventListener('change', () => { f.incluir = chk.checked; actualizarBotonGuardarImport(); });
     tdChk.appendChild(chk);
     tr.appendChild(tdChk);
+    const tdCat = document.createElement('td');
+    const selCat = document.createElement('select');
+    categoriasOrdenadas().forEach(c => selCat.add(new Option(c, c)));
+    selCat.value = f.categoria;
+    selCat.addEventListener('change', () => { f.categoria = selCat.value; });
+    tdCat.appendChild(selCat);
+    tr.appendChild(tdCat);
     tr.appendChild(celda('nombre_es', 'Español'));
     tr.appendChild(celda('nombre_en', 'English'));
     tr.appendChild(celda('alergenos_es', 'Alérgenos'));
@@ -213,13 +232,12 @@ function guardarImportados() {
     mostrarErrorImport('Falta configurar WEBAPP_URL en js/config.js.');
     return;
   }
-  const categoria = document.getElementById('import-categoria').value;
   let id = siguienteId();
   const nuevos = importFilas.filter(f => f.incluir && f.nombre_es.trim()).map(f => {
     // si el usuario editó los alérgenos ES a mano y dejó EN vacío, se traducen
     let aEs = f.alergenos_es.trim(), aEn = (f.alergenos_en || '').trim();
     if (aEs && !aEn) { const n = normalizarAlergenos(aEs); aEs = n.es; aEn = n.en; }
-    return { id: id++, categoria, nombre_es: f.nombre_es.trim(), nombre_en: (f.nombre_en || '').trim(), alergenos_es: aEs, alergenos_en: aEn };
+    return { id: id++, categoria: f.categoria, nombre_es: f.nombre_es.trim(), nombre_en: (f.nombre_en || '').trim(), alergenos_es: aEs, alergenos_en: aEn };
   });
   if (!nuevos.length) return;
 
@@ -236,7 +254,7 @@ function guardarImportados() {
     seleccion.add(p.id);
   });
   guardarSeleccion(seleccion);
-  quitarCategoriaLocal(categoria);
+  nuevos.forEach(p => quitarCategoriaLocal(p.categoria));
   cerrarModalImportar();
   renderTodo();
 }

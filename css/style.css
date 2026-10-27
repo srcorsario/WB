@@ -1030,3 +1030,9 @@ main {
 .import-tabla td { padding: 2px 3px; }
 .import-tabla td input[type=text] { width: 100%; box-sizing: border-box; }
 .import-existe { opacity: 0.6; }
+
+/* Botón ✕ para quitar un cartelito (solo en pantalla) */
+.cartelito { position: relative; }
+.cartelito-quitar { position: absolute; top: 4px; right: 4px; width: 22px; height: 22px; padding: 0; border: 1px solid #bbb; border-radius: 50%; background: #fff; color: #c0392b; font-size: 12px; line-height: 1; cursor: pointer; }
+.cartelito-quitar:hover { background: #c0392b; color: #fff; }
+@media print { .cartelito-quitar { display: none !important; } }

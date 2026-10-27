@@ -17,6 +17,7 @@
  *              despliegue está activo y accesible ("Cualquier usuario")
  *   POST { action: "add",    id, categoria, nombre_es, nombre_en } -> añade una fila nueva
  *   POST { action: "update", id, categoria, nombre_es, nombre_en } -> actualiza la fila con ese id
+ *   POST { action: "addMany", platos: [...] } -> alta masiva (importar lista)
  *   POST { action: "delete", id }                                 -> borra la fila con ese id
  *
  * CONFIGURACIÓN (una sola vez):
@@ -36,6 +37,13 @@ function jsonOut_(obj) {
   return ContentService
     .createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
+}
+
+// Asegura que existan las cabeceras E1/F1 (Alergenos_ES / Alergenos_EN).
+function asegurarCabeceras_(sheet) {
+  const cab = sheet.getRange(1, 5, 1, 2).getValues()[0];
+  if (cab[0] !== 'Alergenos_ES') sheet.getRange(1, 5).setValue('Alergenos_ES');
+  if (cab[1] !== 'Alergenos_EN') sheet.getRange(1, 6).setValue('Alergenos_EN');
 }
 
 function nextId_(sheet) {
@@ -72,6 +80,25 @@ function doPost(e) {
   try {
     const body = JSON.parse(e.postData.contents);
     const sheet = getSheet_();
+    asegurarCabeceras_(sheet);
+
+    // Alta masiva (importar lista): { action:'addMany', platos:[{id,categoria,nombre_es,nombre_en,alergenos_es,alergenos_en}] }
+    if (body.action === 'addMany') {
+      const lista = Array.isArray(body.platos) ? body.platos : [];
+      let id = nextId_(sheet);
+      const filas = lista
+        .filter(p => p && String(p.categoria || '').trim() && String(p.nombre_es || '').trim())
+        .map(p => [
+          p.id || id++,
+          String(p.categoria).trim(),
+          String(p.nombre_es).trim(),
+          String(p.nombre_en || '').trim(),
+          String(p.alergenos_es || '').trim(),
+          String(p.alergenos_en || '').trim()
+        ]);
+      if (filas.length) sheet.getRange(sheet.getLastRow() + 1, 1, filas.length, 6).setValues(filas);
+      return jsonOut_({ ok: true, anadidos: filas.length });
+    }
 
     if (body.action === 'add') {
       const categoria = (body.categoria || '').trim();
@@ -83,7 +110,7 @@ function doPost(e) {
       }
 
       const id = body.id || nextId_(sheet);
-      sheet.appendRow([id, categoria, nombreEs, nombreEn]);
+      sheet.appendRow([id, categoria, nombreEs, nombreEn, (body.alergenos_es || '').trim(), (body.alergenos_en || '').trim()]);
       return jsonOut_({ ok: true, plato: { id, categoria, nombre_es: nombreEs, nombre_en: nombreEn } });
     }
 
@@ -99,9 +126,9 @@ function doPost(e) {
       const fila = encontrarFilaPorId_(sheet, body.id);
       if (fila === -1) {
         // No existía (p.ej. se editó un plato aún no confirmado en el CSV): lo creamos.
-        sheet.appendRow([body.id, categoria, nombreEs, nombreEn]);
+        sheet.appendRow([body.id, categoria, nombreEs, nombreEn, (body.alergenos_es || '').trim(), (body.alergenos_en || '').trim()]);
       } else {
-        sheet.getRange(fila, 2, 1, 3).setValues([[categoria, nombreEs, nombreEn]]);
+        sheet.getRange(fila, 2, 1, 5).setValues([[categoria, nombreEs, nombreEn, (body.alergenos_es || '').trim(), (body.alergenos_en || '').trim()]]);
       }
       return jsonOut_({ ok: true, plato: { id: body.id, categoria, nombre_es: nombreEs, nombre_en: nombreEn } });
     }

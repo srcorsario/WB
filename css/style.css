@@ -1014,3 +1014,19 @@ main {
     margin: 1.2cm;
   }
 }
+
+/* ---------- Alérgenos en cartelitos ---------- */
+.cartelito-alerg { font-family: var(--fuente-en); font-size: 7.5pt; color: #333; line-height: 1.25; }
+.cartelito-alerg[hidden] { display: none; }
+.cartelito-alerg-es { margin-top: 0.3rem; }
+.opcion-alergenos { display: inline-flex; align-items: center; gap: 0.4rem; margin-left: 0.8rem; font-size: 0.9rem; }
+
+/* ---------- Importar lista ---------- */
+.modal-ancho { max-width: 960px; }
+#import-texto { width: 100%; box-sizing: border-box; margin: 0.6rem 0; font-family: inherit; }
+.import-tabla-wrap { max-height: 55vh; overflow: auto; margin: 0.6rem 0; }
+.import-tabla { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+.import-tabla th { text-align: left; position: sticky; top: 0; background: var(--color-surface); }
+.import-tabla td { padding: 2px 3px; }
+.import-tabla td input[type=text] { width: 100%; box-sizing: border-box; }
+.import-existe { opacity: 0.6; }

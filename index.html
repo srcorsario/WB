@@ -32,6 +32,7 @@
 
     <div class="toolbar no-print">
       <input type="search" id="buscador" placeholder="Buscar plato...">
+      <button id="btn-importar" class="btn secundario">📥 Importar lista</button>
       <button id="btn-recargar" class="btn secundario">Recargar de la hoja</button>
       <button id="btn-limpiar-seleccion" class="btn secundario">Vaciar selección de hoy</button>
     </div>
@@ -56,6 +57,7 @@
 
     <div class="toolbar no-print">
       <button id="btn-imprimir" class="btn principal">🖨️ Imprimir / Guardar PDF</button>
+      <label class="opcion-alergenos"><input type="checkbox" id="chk-mostrar-alergenos"> Mostrar alérgenos</label>
       <span id="cartelitos-vacio-msg" class="estado" hidden>Aún no has seleccionado ningún plato en la pestaña "Platos".</span>
     </div>
 
@@ -90,6 +92,8 @@
   <div class="cartelito">
     <div class="cartelito-es"></div>
     <div class="cartelito-en"></div>
+    <div class="cartelito-alerg cartelito-alerg-es" hidden></div>
+    <div class="cartelito-alerg cartelito-alerg-en" hidden></div>
   </div>
 </template>
 
@@ -123,12 +127,51 @@
         </div>
         <div id="opciones-traduccion" class="opciones-traduccion" hidden></div>
       </label>
+      <label>Alérgenos en español <span class="opcional">(opcional, separados por comas)</span>
+        <input type="text" id="nuevo-alergenos-es" placeholder="Ej. Gluten, Huevo, Lactosa">
+      </label>
+      <label>Alérgenos en inglés <span class="opcional">(opcional, se traducen si lo dejas vacío)</span>
+        <input type="text" id="nuevo-alergenos-en" placeholder="Ej. Gluten, Egg, Lactose">
+      </label>
       <div id="form-nuevo-plato-error" class="form-error" hidden></div>
       <div class="modal-botones">
         <button type="button" id="btn-cancelar-nuevo" class="btn secundario">Cancelar</button>
         <button type="submit" id="btn-guardar-nuevo" class="btn principal">Guardar plato</button>
       </div>
     </form>
+  </div>
+</div>
+
+<!-- ================= MODAL: importar lista de platos ================= -->
+<div id="modal-importar" class="modal no-print" hidden>
+  <div class="modal-contenido modal-ancho">
+    <h2>Importar lista de platos</h2>
+    <div id="import-paso1">
+      <p class="modal-explicacion">Un plato por línea: <code>NOMBRE: ALERGENO1, ALERGENO2...</code> (el "-" inicial y los alérgenos son opcionales). Se traduce al inglés, junto con los alérgenos.</p>
+      <label>Categoría
+        <select id="import-categoria"></select>
+      </label>
+      <textarea id="import-texto" rows="12" placeholder="-MINI EMPANADA DE CARNE COCIDA: GLUTEN,HUEVO,LACTOSA"></textarea>
+      <div class="modal-botones">
+        <button type="button" id="btn-import-cancelar" class="btn secundario">Cancelar</button>
+        <button type="button" id="btn-import-analizar" class="btn principal">Analizar y traducir</button>
+      </div>
+    </div>
+    <div id="import-paso2" hidden>
+      <p class="modal-explicacion">Revisa y corrige lo que haga falta. Los que ya existen aparecen desmarcados.</p>
+      <div class="import-tabla-wrap">
+        <table class="import-tabla">
+          <thead><tr><th></th><th>Español</th><th>English</th><th>Alérgenos</th><th>Allergens</th></tr></thead>
+          <tbody id="import-tbody"></tbody>
+        </table>
+      </div>
+      <div class="modal-botones">
+        <button type="button" id="btn-import-volver" class="btn secundario">← Volver</button>
+        <button type="button" id="btn-import-cancelar2" class="btn secundario">Cancelar</button>
+        <button type="button" id="btn-import-guardar" class="btn principal">Guardar</button>
+      </div>
+    </div>
+    <div id="import-error" class="form-error" hidden></div>
   </div>
 </div>
 
@@ -231,5 +274,6 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
+<script src="js/importar.js"></script>
 </body>
 </html>

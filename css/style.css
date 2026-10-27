@@ -1040,3 +1040,5 @@ main {
 /* Categoría informativa (solo pantalla, no se imprime) */
 .cartelito-categoria { position: absolute; top: 6px; left: 8px; right: 34px; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media print { .cartelito-categoria { display: none !important; } }
+
+.import-sin-cat { border: 2px solid #c0392b; }

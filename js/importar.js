@@ -93,7 +93,7 @@ async function traducirListaConGemini(nombres, categorias) {
     'Si el nombre usa una palabra de cocina española/regional que NO sea universalmente conocida en inglés ' +
     '(p. ej. "coca", "ensaimada", "cocarroi", "trampó", "empanada" sí se deja), mantenla y añade una breve explicación en inglés sencillo: "<Nombre>, <descripción breve>". ' +
     'Marcas o nombres propios se dejan igual. ' +
-    (categorias ? 'Además asigna a cada plato la categoría más adecuada de esta lista cerrada (copia el texto exacto): ' + JSON.stringify(categorias) + '. ' +
+    (categorias ? 'Además asigna a cada plato la categoría más adecuada de esta lista cerrada (copia el texto exacto): ' + JSON.stringify(categorias) + '. Es OBLIGATORIO que cada plato lleve su "cat" (no uses la primera por defecto: razona cada plato). ' +
       'Ojo: dulces, bollería, trenzas, cocas dulces, ensaimadas, magdalenas → postres (si existe); empanadas, cocas saladas, conos → entrantes (si existe). ' : '') +
     'Responde ÚNICAMENTE con un array JSON del mismo tamaño y orden que la lista, sin texto adicional, ' +
     (categorias ? 'donde cada elemento es {"en":"traducción","cat":"categoría"}. ' : 'donde cada elemento es un string con la traducción. ') + 'Lista: ' +
@@ -172,7 +172,7 @@ async function analizarListaImportar() {
   }
   btn.disabled = false;
   btn.textContent = 'Analizar y traducir';
-  importFilas = lista.map(p => ({ ...p, categoria: auto ? (cats.includes(p.categoria) ? p.categoria : cats[0]) : catSel, existe: existentes.has(sinAcentos(p.nombre_es)) }));
+  importFilas = lista.map(p => ({ ...p, categoria: auto ? ((cats.find(c => sinAcentos(c) === sinAcentos(p.categoria)) || '')) : catSel, existe: existentes.has(sinAcentos(p.nombre_es)) }));
   renderPreviewImportar();
   mostrarErrorImport(aviso);
   document.getElementById('import-paso1').hidden = true;
@@ -204,9 +204,11 @@ function renderPreviewImportar() {
     tr.appendChild(tdChk);
     const tdCat = document.createElement('td');
     const selCat = document.createElement('select');
+    if (!f.categoria) selCat.add(new Option('— elegir —', ''));
     categoriasOrdenadas().forEach(c => selCat.add(new Option(c, c)));
     selCat.value = f.categoria;
-    selCat.addEventListener('change', () => { f.categoria = selCat.value; });
+    selCat.addEventListener('change', () => { f.categoria = selCat.value; selCat.classList.remove('import-sin-cat'); actualizarBotonGuardarImport(); });
+    if (!f.categoria) selCat.classList.add('import-sin-cat');
     tdCat.appendChild(selCat);
     tr.appendChild(tdCat);
     tr.appendChild(celda('nombre_es', 'Español'));
@@ -224,7 +226,9 @@ function actualizarBotonGuardarImport() {
   const n = importFilas.filter(f => f.incluir).length;
   const b = document.getElementById('btn-import-guardar');
   b.textContent = `Guardar ${n} plato${n === 1 ? '' : 's'}`;
-  b.disabled = n === 0;
+  const sinCat = importFilas.filter(f => f.incluir && !f.categoria).length;
+  b.disabled = n === 0 || sinCat > 0;
+  if (sinCat) b.textContent += ` (faltan ${sinCat} categorías)`;
 }
 
 function guardarImportados() {

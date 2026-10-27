@@ -811,6 +811,7 @@ function renderCartelitos() {
     const formatoTexto = getFormatoTexto();
     grupo.forEach(plato => {
       const nodo = tpl.content.cloneNode(true);
+      nodo.querySelector('.cartelito-categoria').textContent = plato.categoria;
       nodo.querySelector('.cartelito-quitar').addEventListener('click', () => alternarSeleccion(plato.id, false));
       nodo.querySelector('.cartelito-es').textContent = aplicarFormatoNombre(plato.nombre_es, formatoTexto);
       nodo.querySelector('.cartelito-en').textContent = aplicarFormatoNombre(plato.nombre_en || '', formatoTexto);

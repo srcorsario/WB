@@ -1062,7 +1062,14 @@ main {
 .cartelito.con-alerg { padding: 22px 0.6rem 0.5rem; gap: calc(0.5rem * var(--fit, 1)); }
 .cartelito .cartelito-alerg { font-size: calc(var(--tamano-alerg) * var(--fit, 1)); margin: 0; }
 .cartelito .cartelito-alerg-iconos { margin: 0; }
-.cartelito .cartelito-alerg-iconos img { height: calc(var(--tamano-iconos) * var(--fit, 1)); }
 
 .import-correccion { display: block; margin-top: 2px; padding: 1px 6px; border: 1px solid #f0c27b; border-radius: 8px; background: #fdebd0; color: #b9770e; font-size: 0.75rem; cursor: pointer; text-align: left; }
 .import-opciones { display: block; width: 100%; margin-top: 2px; font-size: 0.75rem; }
+
+/* Iconos: siempre una fila. 7 mm caben hasta 10; con más se encogen (mín. 5,5 mm) */
+.cartelito .cartelito-alerg-fila { flex-wrap: nowrap; gap: 1.2mm; }
+/* Texto de alérgenos: usa todo el ancho (sin reparto equilibrado) */
+.cartelito .cartelito-alerg { text-wrap: wrap; }
+.cartelito .cartelito-alerg-iconos img {
+  height: max(5.5mm, min(var(--tamano-iconos), (84mm - (var(--n, 1) - 1) * 1.2mm) / var(--n, 1)));
+}

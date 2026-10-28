@@ -116,7 +116,7 @@ const FUENTES_DISPONIBLES = [
 const TIPOGRAFIA_PREDETERMINADA = {
   es: { fuente: 'Montserrat', tamano: 14 },
   en: { fuente: 'Montserrat', tamano: 12 },
-  alerg: { tamano: 8.5, iconos: 7 } // texto en pt, iconos en mm
+  alerg: { tamano: 10, iconos: 7 } // texto en pt, iconos en mm
 };
 
 function copiaTipografiaPredeterminada() {
@@ -847,21 +847,18 @@ function renderCartelitos() {
         }
         if (modoAl === 'imagen' || modoAl === 'ambos') {
           const cont = nodo.querySelector('.cartelito-alerg-iconos');
-          // Reparto equilibrado en filas (p. ej. 10 iconos -> 5+5, no 9+1)
+          // Siempre en una sola fila; si hay muchos iconos, el CSS los encoge (usa --n)
           const iconos = iconosAlergenos(plato.alergenos_es);
-          const filas = Math.ceil(iconos.length / 7);
-          const porFila = Math.ceil(iconos.length / (filas || 1));
-          for (let i = 0; i < iconos.length; i += porFila) {
-            const fila = document.createElement('div');
-            fila.className = 'cartelito-alerg-fila';
-            iconos.slice(i, i + porFila).forEach(ic => {
-              const img = document.createElement('img');
-              img.src = 'img/alergenos/' + ic + '.webp';
-              img.alt = ic;
-              fila.appendChild(img);
-            });
-            cont.appendChild(fila);
-          }
+          const fila = document.createElement('div');
+          fila.className = 'cartelito-alerg-fila';
+          fila.style.setProperty('--n', iconos.length || 1);
+          iconos.forEach(ic => {
+            const img = document.createElement('img');
+            img.src = 'img/alergenos/' + ic + '.webp';
+            img.alt = ic;
+            fila.appendChild(img);
+          });
+          cont.appendChild(fila);
           cont.hidden = !iconos.length;
         }
       }
@@ -886,17 +883,27 @@ function getModoAlergenos() {
   } catch (e) { return 'texto'; }
 }
 
-// Si el contenido de un cartelito no cabe, reduce SOLO el bloque de alérgenos
-// (texto e iconos, variable --fit, hasta un 40%) hasta que quepa. Los nombres
+// Si algún cartelito no cabe, reduce SOLO el bloque de alérgenos (texto e
+// iconos, variable --fit, hasta un 40%), igual en todos los cartelitos. Los nombres
 // en español e inglés mantienen siempre el tamaño elegido en "🔤 Letra".
 function ajustarCartelitos() {
-  document.querySelectorAll('.cartelito').forEach(c => {
-    c.style.removeProperty('--fit');
+  const cartelitos = [...document.querySelectorAll('.cartelito')];
+  cartelitos.forEach(c => c.style.removeProperty('--fit'));
+  // Se calcula cuánto necesita reducir cada cartelito y se aplica a TODOS el
+  // mismo factor (el más pequeño), para que el bloque de alérgenos tenga el
+  // mismo tamaño en toda la impresión.
+  let fitGlobal = 1;
+  cartelitos.forEach(c => {
     let f = 1;
     while (c.scrollHeight > c.clientHeight + 1 && f > 0.4) {
       f -= 0.05;
       c.style.setProperty('--fit', f.toFixed(2));
     }
+    fitGlobal = Math.min(fitGlobal, f);
+  });
+  cartelitos.forEach(c => {
+    if (fitGlobal < 1) c.style.setProperty('--fit', fitGlobal.toFixed(2));
+    else c.style.removeProperty('--fit');
   });
 }
 
@@ -1037,7 +1044,14 @@ function reglasTraduccion() {
     'genérica: la descripción debería reflejar eso aunque el nombre en español solo diga "frito ' +
     'mallorquín". Si el plato no te suena y no lo reconoces con seguridad, entonces sí basa la ' +
     'descripción solo en lo que las palabras del nombre dicen literalmente, sin inventar ' +
-    'ingredientes que no puedas deducir de ellas. ';
+    'ingredientes que no puedas deducir de ellas. ' +
+    'IMPORTANTE: el formato "<Nombre>, <descripción breve>" es SOLO para especialidades regionales ' +
+    'o extranjeras poco conocidas en inglés (coca, ensaimada, cocarroi, trampó, sobrasada, frito ' +
+    'mallorquín, etc.). Las palabras corrientes de cocina que tienen traducción directa (cono, roll, ' +
+    'trenza, lingote, crema, rollito, etc.) se traducen sin más, sin repetir el nombre en español ni ' +
+    'añadir descripción: por ejemplo, "Conos de pollo" es "Chicken cones" y "Roll canela" es ' +
+    '"Cinnamon roll". Para formas o piezas usa la palabra inglesa habitual en cocina (por ejemplo, ' +
+    '"lingote" de hojaldre es "bar", no "ingot"). ';
 }
 
 // Pide a Gemini, en una sola llamada, que (1) revise si el nombre en español

@@ -883,27 +883,20 @@ function getModoAlergenos() {
   } catch (e) { return 'texto'; }
 }
 
-// Si algún cartelito no cabe, reduce SOLO el bloque de alérgenos (texto e
-// iconos, variable --fit, hasta un 40%), igual en todos los cartelitos. Los nombres
+// Si un cartelito no cabe, reduce SOLO su bloque de alérgenos (variable --fit). Los nombres
 // en español e inglés mantienen siempre el tamaño elegido en "🔤 Letra".
 function ajustarCartelitos() {
-  const cartelitos = [...document.querySelectorAll('.cartelito')];
-  cartelitos.forEach(c => c.style.removeProperty('--fit'));
-  // Se calcula cuánto necesita reducir cada cartelito y se aplica a TODOS el
-  // mismo factor (el más pequeño), para que el bloque de alérgenos tenga el
-  // mismo tamaño en toda la impresión.
-  let fitGlobal = 1;
-  cartelitos.forEach(c => {
+  // Cada cartelito mantiene el tamaño de alérgenos elegido en "🔤 Letra";
+  // solo el que no cabe reduce su propio bloque de alérgenos lo justo
+  // (nunca los nombres). Así un plato con un nombre muy largo no hace
+  // diminuto el texto de todos los demás.
+  document.querySelectorAll('.cartelito').forEach(c => {
+    c.style.removeProperty('--fit');
     let f = 1;
-    while (c.scrollHeight > c.clientHeight + 1 && f > 0.4) {
+    while (c.scrollHeight > c.clientHeight + 1 && f > 0.5) {
       f -= 0.05;
       c.style.setProperty('--fit', f.toFixed(2));
     }
-    fitGlobal = Math.min(fitGlobal, f);
-  });
-  cartelitos.forEach(c => {
-    if (fitGlobal < 1) c.style.setProperty('--fit', fitGlobal.toFixed(2));
-    else c.style.removeProperty('--fit');
   });
 }
 
@@ -1051,7 +1044,13 @@ function reglasTraduccion() {
     'trenza, lingote, crema, rollito, etc.) se traducen sin más, sin repetir el nombre en español ni ' +
     'añadir descripción: por ejemplo, "Conos de pollo" es "Chicken cones" y "Roll canela" es ' +
     '"Cinnamon roll". Para formas o piezas usa la palabra inglesa habitual en cocina (por ejemplo, ' +
-    '"lingote" de hojaldre es "bar", no "ingot"). ';
+    '"lingote" de hojaldre es "bar", no "ingot"). ' +
+    'Las traducciones son para un cartelito pequeño: sé breve. Cuando lleve descripción, que sea de ' +
+    'unas 5-6 palabras como máximo, sin repetir lo que ya dice el nombre ni encadenar varias ' +
+    'explicaciones (mal: "Sweet coca, sweet flatbread pastry, with apricot and sobrasada, spreadable ' +
+    'cured sausage"; bien: "Sweet coca with apricot and sobrasada"). Los nombres propios de piezas ' +
+    'de pastelería o bollería local no se traducen como gentilicio (el "Argentino" es una pieza de ' +
+    'bollería, no "Argentinian").';
 }
 
 // Pide a Gemini, en una sola llamada, que (1) revise si el nombre en español

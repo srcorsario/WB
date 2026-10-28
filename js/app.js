@@ -115,7 +115,8 @@ const FUENTES_DISPONIBLES = [
 
 const TIPOGRAFIA_PREDETERMINADA = {
   es: { fuente: 'Montserrat', tamano: 14 },
-  en: { fuente: 'Montserrat', tamano: 12 }
+  en: { fuente: 'Montserrat', tamano: 12 },
+  alerg: { tamano: 8.5, iconos: 7 } // texto en pt, iconos en mm
 };
 
 function copiaTipografiaPredeterminada() {
@@ -133,7 +134,8 @@ function getTipografia() {
     const guardada = raw ? JSON.parse(raw) : {};
     return {
       es: { ...predet.es, ...(guardada.es || {}) },
-      en: { ...predet.en, ...(guardada.en || {}) }
+      en: { ...predet.en, ...(guardada.en || {}) },
+      alerg: { ...predet.alerg, ...(guardada.alerg || {}) }
     };
   } catch (e) {
     return predet;
@@ -167,6 +169,8 @@ function aplicarTipografia(tipografia) {
   raiz.setProperty('--tamano-es', tipografia.es.tamano + 'pt');
   raiz.setProperty('--fuente-en', en.pila);
   raiz.setProperty('--tamano-en', tipografia.en.tamano + 'pt');
+  raiz.setProperty('--tamano-alerg', tipografia.alerg.tamano + 'pt');
+  raiz.setProperty('--tamano-iconos', tipografia.alerg.iconos + 'mm');
 }
 
 function llenarSelectFuentes(select, valorSeleccionado) {
@@ -185,6 +189,8 @@ function rellenarFormularioLetra(tipografia) {
   document.getElementById('tamano-es').value = tipografia.es.tamano;
   llenarSelectFuentes(document.getElementById('fuente-en'), tipografia.en.fuente);
   document.getElementById('tamano-en').value = tipografia.en.tamano;
+  document.getElementById('tamano-alerg').value = tipografia.alerg.tamano;
+  document.getElementById('tamano-iconos').value = tipografia.alerg.iconos;
 }
 
 // Se llama en cada cambio del formulario para que la vista previa se
@@ -193,6 +199,9 @@ function leerYAplicarFormularioLetra() {
   const predet = copiaTipografiaPredeterminada();
   const tamEs = parseFloat(document.getElementById('tamano-es').value);
   const tamEn = parseFloat(document.getElementById('tamano-en').value);
+  const tamAl = parseFloat(document.getElementById('tamano-alerg').value);
+  const tamIc = parseFloat(document.getElementById('tamano-iconos').value);
+  const valido = v => Number.isFinite(v) && v > 0;
 
   const tipografia = {
     es: {
@@ -202,11 +211,16 @@ function leerYAplicarFormularioLetra() {
     en: {
       fuente: document.getElementById('fuente-en').value,
       tamano: Number.isFinite(tamEn) && tamEn > 0 ? tamEn : predet.en.tamano
+    },
+    alerg: {
+      tamano: valido(tamAl) ? tamAl : predet.alerg.tamano,
+      iconos: valido(tamIc) ? tamIc : predet.alerg.iconos
     }
   };
 
   guardarTipografia(tipografia);
   aplicarTipografia(tipografia);
+  ajustarCartelitos();
 }
 
 function abrirModalLetra() {
@@ -872,13 +886,14 @@ function getModoAlergenos() {
   } catch (e) { return 'texto'; }
 }
 
-// Si el contenido de un cartelito no cabe, reduce proporcionalmente tipografías e
-// iconos (variable --fit, hasta un 50%) hasta que quepa. Se aplica igual al imprimir.
+// Si el contenido de un cartelito no cabe, reduce SOLO el bloque de alérgenos
+// (texto e iconos, variable --fit, hasta un 40%) hasta que quepa. Los nombres
+// en español e inglés mantienen siempre el tamaño elegido en "🔤 Letra".
 function ajustarCartelitos() {
   document.querySelectorAll('.cartelito').forEach(c => {
     c.style.removeProperty('--fit');
     let f = 1;
-    while (c.scrollHeight > c.clientHeight + 1 && f > 0.5) {
+    while (c.scrollHeight > c.clientHeight + 1 && f > 0.4) {
       f -= 0.05;
       c.style.setProperty('--fit', f.toFixed(2));
     }
@@ -1581,7 +1596,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('btn-ajustes-letra').addEventListener('click', abrirModalLetra);
   document.getElementById('btn-cerrar-ajustes-letra').addEventListener('click', cerrarModalLetra);
   document.getElementById('btn-restablecer-letra').addEventListener('click', restablecerLetra);
-  ['fuente-es', 'tamano-es', 'fuente-en', 'tamano-en'].forEach(id => {
+  ['fuente-es', 'tamano-es', 'fuente-en', 'tamano-en', 'tamano-alerg', 'tamano-iconos'].forEach(id => {
     document.getElementById(id).addEventListener('input', leerYAplicarFormularioLetra);
   });
   ['formato-mayusculas', 'formato-capitalizado'].forEach(id => {

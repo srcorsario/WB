@@ -1058,12 +1058,11 @@ main {
 .cartelito-alerg { font-size: 9pt; text-wrap: balance; }
 
 /* Ajuste automático para que todo quepa (--fit lo calcula ajustarCartelitos() en app.js) */
-.cartelito .cartelito-es { font-size: calc(var(--tamano-es) * var(--fit, 1)); }
-.cartelito .cartelito-en { font-size: calc(var(--tamano-en) * var(--fit, 1)); }
+:root { --tamano-alerg: 8.5pt; --tamano-iconos: 7mm; }
 .cartelito.con-alerg { padding: 22px 0.6rem 0.5rem; gap: calc(0.5rem * var(--fit, 1)); }
-.cartelito .cartelito-alerg { font-size: calc(8.5pt * var(--fit, 1)); margin: 0; }
+.cartelito .cartelito-alerg { font-size: calc(var(--tamano-alerg) * var(--fit, 1)); margin: 0; }
 .cartelito .cartelito-alerg-iconos { margin: 0; }
-.cartelito .cartelito-alerg-iconos img { height: calc(7mm * var(--fit, 1)); }
+.cartelito .cartelito-alerg-iconos img { height: calc(var(--tamano-iconos) * var(--fit, 1)); }
 
 .import-correccion { display: block; margin-top: 2px; padding: 1px 6px; border: 1px solid #f0c27b; border-radius: 8px; background: #fdebd0; color: #b9770e; font-size: 0.75rem; cursor: pointer; text-align: left; }
 .import-opciones { display: block; width: 100%; margin-top: 2px; font-size: 0.75rem; }

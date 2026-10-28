@@ -1052,3 +1052,7 @@ main {
 .cartelito-alerg-iconos { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.2mm; margin-top: 0.3rem; }
 .cartelito-alerg-iconos[hidden] { display: none; }
 .cartelito-alerg-iconos img { height: 8mm; width: auto; }
+
+.cartelito-alerg-iconos { flex-direction: column; align-items: center; gap: 1mm; }
+.cartelito-alerg-fila { display: flex; justify-content: center; gap: 1.2mm; }
+.cartelito-alerg { font-size: 9pt; text-wrap: balance; }

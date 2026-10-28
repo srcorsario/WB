@@ -832,13 +832,22 @@ function renderCartelitos() {
         }
         if (modoAl === 'imagen' || modoAl === 'ambos') {
           const cont = nodo.querySelector('.cartelito-alerg-iconos');
-          iconosAlergenos(plato.alergenos_es).forEach(ic => {
-            const img = document.createElement('img');
-            img.src = 'img/alergenos/' + ic + '.webp';
-            img.alt = ic;
-            cont.appendChild(img);
-          });
-          cont.hidden = !cont.children.length;
+          // Reparto equilibrado en filas (p. ej. 10 iconos -> 5+5, no 9+1)
+          const iconos = iconosAlergenos(plato.alergenos_es);
+          const filas = Math.ceil(iconos.length / 7);
+          const porFila = Math.ceil(iconos.length / (filas || 1));
+          for (let i = 0; i < iconos.length; i += porFila) {
+            const fila = document.createElement('div');
+            fila.className = 'cartelito-alerg-fila';
+            iconos.slice(i, i + porFila).forEach(ic => {
+              const img = document.createElement('img');
+              img.src = 'img/alergenos/' + ic + '.webp';
+              img.alt = ic;
+              fila.appendChild(img);
+            });
+            cont.appendChild(fila);
+          }
+          cont.hidden = !iconos.length;
         }
       }
       hoja.appendChild(nodo);

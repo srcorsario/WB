@@ -1044,3 +1044,7 @@ main {
 .import-sin-cat { border: 2px solid #c0392b; }
 
 .badge-alergenos { display: inline-block; margin-left: 0.5rem; padding: 1px 6px; border-radius: 8px; background: #fdebd0; color: #b9770e; border: 1px solid #f0c27b; font-size: 0.65rem; font-weight: 600; vertical-align: middle; }
+
+.evento-fila { display: flex; align-items: center; gap: 0.5rem; padding: 4px 0; border-bottom: 1px solid #eee; }
+.evento-nombre { flex: 1; font-weight: 600; }
+.eventos-lista { max-height: 40vh; overflow: auto; margin-bottom: 0.8rem; }

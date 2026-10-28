@@ -131,6 +131,7 @@ function abrirModalImportar() {
   sel.add(new Option('🤖 Automática (la IA reparte según el plato)', '__auto__'));
   categoriasOrdenadas().forEach(c => sel.add(new Option(c, c)));
   document.getElementById('import-texto').value = '';
+  document.getElementById('import-evento').value = '';
   document.getElementById('import-error').hidden = true;
   document.getElementById('import-paso1').hidden = false;
   document.getElementById('import-paso2').hidden = true;
@@ -156,6 +157,7 @@ async function analizarListaImportar() {
   const auto = catSel === '__auto__';
   const cats = categoriasOrdenadas();
   const existentes = new Set(platos.map(p => sinAcentos(p.nombre_es)));
+  const idExistente = new Map(platos.map(p => [sinAcentos(p.nombre_es), p.id]));
   const btn = document.getElementById('btn-import-analizar');
   btn.disabled = true;
   btn.textContent = 'Traduciendo...';
@@ -172,7 +174,7 @@ async function analizarListaImportar() {
   }
   btn.disabled = false;
   btn.textContent = 'Analizar y traducir';
-  importFilas = lista.map(p => ({ ...p, categoria: auto ? ((cats.find(c => sinAcentos(c) === sinAcentos(p.categoria)) || '')) : catSel, existe: existentes.has(sinAcentos(p.nombre_es)) }));
+  importFilas = lista.map(p => ({ ...p, categoria: auto ? ((cats.find(c => sinAcentos(c) === sinAcentos(p.categoria)) || '')) : catSel, existe: existentes.has(sinAcentos(p.nombre_es)), idExistente: idExistente.get(sinAcentos(p.nombre_es)) }));
   renderPreviewImportar();
   mostrarErrorImport(aviso);
   document.getElementById('import-paso1').hidden = true;
@@ -237,13 +239,23 @@ function guardarImportados() {
     return;
   }
   let id = siguienteId();
+  const idsEvento = [];
   const nuevos = importFilas.filter(f => f.incluir && f.nombre_es.trim()).map(f => {
     // si el usuario editó los alérgenos ES a mano y dejó EN vacío, se traducen
     let aEs = f.alergenos_es.trim(), aEn = (f.alergenos_en || '').trim();
     if (aEs && !aEn) { const n = normalizarAlergenos(aEs); aEs = n.es; aEn = n.en; }
+    f.idNuevo = id;
     return { id: id++, categoria: f.categoria, nombre_es: f.nombre_es.trim(), nombre_en: (f.nombre_en || '').trim(), alergenos_es: aEs, alergenos_en: aEn };
   });
-  if (!nuevos.length) return;
+  if (!nuevos.length && !importFilas.some(f => f.existe)) return;
+  const nombreEvento = document.getElementById('import-evento').value.trim();
+  if (nombreEvento) {
+    importFilas.forEach(f => {
+      if (f.incluir && f.nombre_es.trim() && f.idNuevo) idsEvento.push(f.idNuevo);
+      else if (f.existe && f.idExistente) idsEvento.push(f.idExistente); // ya estaba en la hoja y se reutiliza
+    });
+    guardarEventoRemoto(nombreEvento, idsEvento);
+  }
 
   fetch(CONFIG.WEBAPP_URL, {
     method: 'POST',

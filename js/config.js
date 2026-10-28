@@ -18,7 +18,7 @@
 const CONFIG = {
   CSV_URL: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vTdpZLG0yPVHJOIZAM0fLwvcNl02TztY_pHo27sHIUCy98LxTTiLdvS-faaZSa58ftSAI7e0H3Ys4mT/pub?output=csv',
 
-  WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbwq00btomritvP6FtQG4EhHxFGai0qur_ILw3CdPknfS7xn_XfmOHQ1LI9dDRz2QZcTbw/exec',
+  WEBAPP_URL: 'https://script.google.com/macros/s/AKfycbxzEXNbMZQNozMFlfz6BcSJBymx8oEHqTXig9re7ZFC-J6DXqaYrEbpoEHc2jTgO8AaOw/exec',
 
   GEMINI_ENDPOINT_URL: 'https://generativelanguage.googleapis.com/v1/models/gemini-2.5-flash:generateContent',
 

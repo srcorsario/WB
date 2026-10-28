@@ -18,6 +18,8 @@
  *   POST { action: "add",    id, categoria, nombre_es, nombre_en } -> añade una fila nueva
  *   POST { action: "update", id, categoria, nombre_es, nombre_en } -> actualiza la fila con ese id
  *   POST { action: "addMany", platos: [...] } -> alta masiva (importar lista)
+ *   GET  ?action=eventos -> lista de eventos guardados (pestaña "Eventos", se crea sola)
+ *   POST { action: "saveEvento", nombre, ids:[...] } / { action: "deleteEvento", nombre }
  *   POST { action: "delete", id }                                 -> borra la fila con ese id
  *
  * CONFIGURACIÓN (una sola vez):
@@ -46,6 +48,43 @@ function asegurarCabeceras_(sheet) {
   if (cab[1] !== 'Alergenos_EN') sheet.getRange(1, 6).setValue('Alergenos_EN');
 }
 
+// ---- Eventos (listas de platos guardadas con nombre) ----
+const SHEET_EVENTOS = 'Eventos';
+
+function getSheetEventos_() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  let sh = ss.getSheetByName(SHEET_EVENTOS);
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_EVENTOS);
+    sh.getRange(1, 1, 1, 3).setValues([['Evento', 'Fecha', 'IDs']]);
+  }
+  return sh;
+}
+
+function listarEventos_() {
+  const sh = getSheetEventos_();
+  const n = sh.getLastRow();
+  if (n < 2) return [];
+  return sh.getRange(2, 1, n - 1, 3).getValues()
+    .filter(r => String(r[0]).trim() !== '')
+    .map(r => ({
+      nombre: String(r[0]),
+      fecha: r[1] instanceof Date ? r[1].toISOString() : String(r[1]),
+      ids: String(r[2]).split(',').map(x => Number(x)).filter(x => isFinite(x) && x > 0)
+    }));
+}
+
+function filaEvento_(sh, nombre) {
+  const n = sh.getLastRow();
+  if (n < 2) return -1;
+  const nombres = sh.getRange(2, 1, n - 1, 1).getValues().flat();
+  const buscado = String(nombre).trim().toLowerCase();
+  for (let i = 0; i < nombres.length; i++) {
+    if (String(nombres[i]).trim().toLowerCase() === buscado) return i + 2;
+  }
+  return -1;
+}
+
 function nextId_(sheet) {
   const lastRow = sheet.getLastRow();
   if (lastRow < 2) return 1;
@@ -71,6 +110,9 @@ function encontrarFilaPorId_(sheet, id) {
 // GET solo sirve para comprobar en el navegador que el despliegue está
 // vivo y accesible (abre la URL directamente: deberías ver este texto).
 function doGet(e) {
+  if (e && e.parameter && e.parameter.action === 'eventos') {
+    return jsonOut_({ ok: true, eventos: listarEventos_() });
+  }
   return ContentService
     .createTextOutput('Cartelitos Buffet: API activa. Usa POST para añadir, editar o borrar platos.')
     .setMimeType(ContentService.MimeType.TEXT);
@@ -81,6 +123,24 @@ function doPost(e) {
     const body = JSON.parse(e.postData.contents);
     const sheet = getSheet_();
     asegurarCabeceras_(sheet);
+
+    if (body.action === 'saveEvento') {
+      const nombre = String(body.nombre || '').trim();
+      if (!nombre) return jsonOut_({ ok: false, error: 'Falta el nombre del evento' });
+      const ids = (Array.isArray(body.ids) ? body.ids : []).map(Number).filter(x => isFinite(x) && x > 0);
+      const sh = getSheetEventos_();
+      const fila = filaEvento_(sh, nombre);
+      if (fila === -1) sh.appendRow([nombre, new Date(), ids.join(',')]);
+      else sh.getRange(fila, 1, 1, 3).setValues([[nombre, new Date(), ids.join(',')]]);
+      return jsonOut_({ ok: true });
+    }
+
+    if (body.action === 'deleteEvento') {
+      const sh = getSheetEventos_();
+      const fila = filaEvento_(sh, body.nombre);
+      if (fila !== -1) sh.deleteRow(fila);
+      return jsonOut_({ ok: true });
+    }
 
     // Alta masiva (importar lista): { action:'addMany', platos:[{id,categoria,nombre_es,nombre_en,alergenos_es,alergenos_en}] }
     if (body.action === 'addMany') {

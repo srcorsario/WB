@@ -57,6 +57,7 @@
 
     <div class="toolbar no-print">
       <button id="btn-imprimir" class="btn principal">🖨️ Imprimir / Guardar PDF</button>
+      <button id="btn-eventos" class="btn secundario">📅 Eventos</button>
       <label class="opcion-alergenos"><input type="checkbox" id="chk-mostrar-alergenos"> Mostrar alérgenos</label>
       <span id="cartelitos-vacio-msg" class="estado" hidden>Aún no has seleccionado ningún plato en la pestaña "Platos".</span>
     </div>
@@ -144,12 +145,32 @@
   </div>
 </div>
 
+<!-- ================= MODAL: eventos guardados ================= -->
+<div id="modal-eventos" class="modal no-print" hidden>
+  <div class="modal-contenido">
+    <h2>Eventos guardados</h2>
+    <div id="eventos-lista" class="eventos-lista"></div>
+    <p class="modal-explicacion">Guardar la selección actual como evento:</p>
+    <div class="campo-con-boton">
+      <input type="text" id="evento-nuevo-nombre" placeholder="Nombre del evento">
+      <button type="button" id="btn-guardar-evento" class="btn principal pequeno">Guardar</button>
+    </div>
+    <div id="eventos-msg" class="form-error" hidden></div>
+    <div class="modal-botones">
+      <button type="button" id="btn-cerrar-eventos" class="btn secundario">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <!-- ================= MODAL: importar lista de platos ================= -->
 <div id="modal-importar" class="modal no-print" hidden>
   <div class="modal-contenido modal-ancho">
     <h2>Importar lista de platos</h2>
     <div id="import-paso1">
       <p class="modal-explicacion">Un plato por línea: <code>NOMBRE: ALERGENO1, ALERGENO2...</code> (el "-" inicial y los alérgenos son opcionales). Se traduce al inglés, junto con los alérgenos.</p>
+      <label>Nombre del evento <span class="opcional">(opcional; guarda esta lista para recuperarla luego)</span>
+        <input type="text" id="import-evento" placeholder="Ej. Evento Fitness, Evento 29-10-2026">
+      </label>
       <label>Categoría
         <select id="import-categoria"></select>
       </label>
@@ -277,5 +298,6 @@
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script src="js/importar.js"></script>
+<script src="js/eventos.js"></script>
 </body>
 </html>

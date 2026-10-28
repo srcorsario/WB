@@ -1048,3 +1048,7 @@ main {
 .evento-fila { display: flex; align-items: center; gap: 0.5rem; padding: 4px 0; border-bottom: 1px solid #eee; }
 .evento-nombre { flex: 1; font-weight: 600; }
 .eventos-lista { max-height: 40vh; overflow: auto; margin-bottom: 0.8rem; }
+
+.cartelito-alerg-iconos { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.2mm; margin-top: 0.3rem; }
+.cartelito-alerg-iconos[hidden] { display: none; }
+.cartelito-alerg-iconos img { height: 8mm; width: auto; }

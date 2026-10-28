@@ -822,11 +822,24 @@ function renderCartelitos() {
       nodo.querySelector('.cartelito-quitar').addEventListener('click', () => alternarSeleccion(plato.id, false));
       nodo.querySelector('.cartelito-es').textContent = aplicarFormatoNombre(plato.nombre_es, formatoTexto);
       nodo.querySelector('.cartelito-en').textContent = aplicarFormatoNombre(plato.nombre_en || '', formatoTexto);
-      if (getMostrarAlergenos() && (plato.alergenos_es || plato.alergenos_en)) {
-        const aEs = nodo.querySelector('.cartelito-alerg-es');
-        const aEn = nodo.querySelector('.cartelito-alerg-en');
-        if (plato.alergenos_es) { aEs.textContent = 'Alérgenos: ' + plato.alergenos_es; aEs.hidden = false; }
-        if (plato.alergenos_en) { aEn.textContent = 'Allergens: ' + plato.alergenos_en; aEn.hidden = false; }
+      const modoAl = getModoAlergenos();
+      if (modoAl !== 'ninguno' && (plato.alergenos_es || plato.alergenos_en)) {
+        if (modoAl === 'texto' || modoAl === 'ambos') {
+          const aEs = nodo.querySelector('.cartelito-alerg-es');
+          const aEn = nodo.querySelector('.cartelito-alerg-en');
+          if (plato.alergenos_es) { aEs.textContent = 'Alérgenos: ' + plato.alergenos_es; aEs.hidden = false; }
+          if (plato.alergenos_en) { aEn.textContent = 'Allergens: ' + plato.alergenos_en; aEn.hidden = false; }
+        }
+        if (modoAl === 'imagen' || modoAl === 'ambos') {
+          const cont = nodo.querySelector('.cartelito-alerg-iconos');
+          iconosAlergenos(plato.alergenos_es).forEach(ic => {
+            const img = document.createElement('img');
+            img.src = 'img/alergenos/' + ic + '.webp';
+            img.alt = ic;
+            cont.appendChild(img);
+          });
+          cont.hidden = !cont.children.length;
+        }
       }
       hoja.appendChild(nodo);
     });
@@ -836,9 +849,13 @@ function renderCartelitos() {
   }
 }
 
-const LS_MOSTRAR_ALERGENOS = 'cartelitos-mostrarAlergenos';
-function getMostrarAlergenos() {
-  try { return localStorage.getItem(LS_MOSTRAR_ALERGENOS) !== '0'; } catch (e) { return true; }
+const LS_MODO_ALERGENOS = 'cartelitos-modoAlergenos'; // texto | imagen | ambos | ninguno
+function getModoAlergenos() {
+  try {
+    const v = localStorage.getItem(LS_MODO_ALERGENOS);
+    if (['texto', 'imagen', 'ambos', 'ninguno'].includes(v)) return v;
+    return localStorage.getItem('cartelitos-mostrarAlergenos') === '0' ? 'ninguno' : 'texto';
+  } catch (e) { return 'texto'; }
 }
 
 function actualizarContador() {
@@ -1509,10 +1526,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
 
-  const chkAl = document.getElementById('chk-mostrar-alergenos');
-  chkAl.checked = getMostrarAlergenos();
-  chkAl.addEventListener('change', () => {
-    try { localStorage.setItem(LS_MOSTRAR_ALERGENOS, chkAl.checked ? '1' : '0'); } catch (e) {}
+  const selAl = document.getElementById('sel-modo-alergenos');
+  selAl.value = getModoAlergenos();
+  selAl.addEventListener('change', () => {
+    try { localStorage.setItem(LS_MODO_ALERGENOS, selAl.value); } catch (e) {}
     renderCartelitos();
   });
 

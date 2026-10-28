@@ -3,6 +3,8 @@
 
 const ALERGENOS = [
   ['gluten', 'Gluten', 'Gluten'],
+  ['vegano', 'Vegano', 'Vegan'],
+  ['vegetariano', 'Vegetariano', 'Vegetarian'],
   ['lactosa', 'Lactosa', 'Lactose'],
   ['leche', 'Leche', 'Milk'],
   ['lacteos', 'Lácteos', 'Dairy'],
@@ -29,6 +31,27 @@ const ALERGENOS = [
   ['pistachos', 'Pistachos', 'Pistachios'],
   ['anacardos', 'Anacardos', 'Cashews']
 ];
+
+// Icono (img/alergenos/<archivo>.webp) de cada alérgeno, por su clave sin acentos.
+const ICONOS_ALERGENOS = {
+  'gluten': 'gluten', 'lactosa': 'lactosa', 'leche': 'lactosa', 'lacteos': 'lactosa',
+  'huevo': 'huevo', 'huevos': 'huevo', 'soja': 'soja', 'sesamo': 'sesamo',
+  'frutos de cascara': 'frutoscascara', 'frutos secos': 'frutoscascara', 'almendras': 'frutoscascara',
+  'nueces': 'frutoscascara', 'avellanas': 'frutoscascara', 'pistachos': 'frutoscascara', 'anacardos': 'frutoscascara',
+  'cacahuete': 'cacahuete', 'cacahuetes': 'cacahuete', 'mostaza': 'mostaza', 'apio': 'apio', 'pescado': 'pescado',
+  'altramuz': 'altramuces', 'altramuces': 'altramuces', 'sulfitos': 'sulfitos', 'dioxido de azufre y sulfitos': 'sulfitos',
+  'crustaceos': 'crustaceo', 'moluscos': 'molusco', 'vegano': 'vegano', 'vegetariano': 'vegetariano'
+};
+
+// Texto de alérgenos (ES, separados por comas) -> lista de iconos sin repetir.
+function iconosAlergenos(textoEs) {
+  const out = [];
+  String(textoEs || '').split(/[,;]|\s+y\s+/i).forEach(t => {
+    const ic = ICONOS_ALERGENOS[sinAcentos(t.replace(/[.\s]+$/g, ''))];
+    if (ic && !out.includes(ic)) out.push(ic);
+  });
+  return out;
+}
 
 function sinAcentos(t) {
   return String(t).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();

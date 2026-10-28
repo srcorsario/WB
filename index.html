@@ -58,7 +58,14 @@
     <div class="toolbar no-print">
       <button id="btn-imprimir" class="btn principal">🖨️ Imprimir / Guardar PDF</button>
       <button id="btn-eventos" class="btn secundario">📅 Eventos</button>
-      <label class="opcion-alergenos"><input type="checkbox" id="chk-mostrar-alergenos"> Mostrar alérgenos</label>
+      <label class="opcion-alergenos">Alérgenos:
+        <select id="sel-modo-alergenos">
+          <option value="texto">Solo texto</option>
+          <option value="imagen">Solo imagen</option>
+          <option value="ambos">Texto e imagen</option>
+          <option value="ninguno">Ninguno</option>
+        </select>
+      </label>
       <span id="cartelitos-vacio-msg" class="estado" hidden>Aún no has seleccionado ningún plato en la pestaña "Platos".</span>
     </div>
 
@@ -95,6 +102,7 @@
     <button type="button" class="cartelito-quitar no-print" title="Quitar de la lista">✕</button>
     <div class="cartelito-es"></div>
     <div class="cartelito-en"></div>
+    <div class="cartelito-alerg-iconos" hidden></div>
     <div class="cartelito-alerg cartelito-alerg-es" hidden></div>
     <div class="cartelito-alerg cartelito-alerg-en" hidden></div>
   </div>

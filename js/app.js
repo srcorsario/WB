@@ -824,6 +824,7 @@ function renderCartelitos() {
       nodo.querySelector('.cartelito-en').textContent = aplicarFormatoNombre(plato.nombre_en || '', formatoTexto);
       const modoAl = getModoAlergenos();
       if (modoAl !== 'ninguno' && (plato.alergenos_es || plato.alergenos_en)) {
+        nodo.querySelector('.cartelito').classList.add('con-alerg');
         if (modoAl === 'texto' || modoAl === 'ambos') {
           const aEs = nodo.querySelector('.cartelito-alerg-es');
           const aEn = nodo.querySelector('.cartelito-alerg-en');
@@ -856,6 +857,10 @@ function renderCartelitos() {
     wrapper.appendChild(hoja);
     contenedor.appendChild(wrapper);
   }
+
+  ajustarCartelitos();
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(ajustarCartelitos);
+  contenedor.querySelectorAll('img').forEach(img => { if (!img.complete) img.addEventListener('load', ajustarCartelitos, { once: true }); });
 }
 
 const LS_MODO_ALERGENOS = 'cartelitos-modoAlergenos'; // texto | imagen | ambos | ninguno
@@ -865,6 +870,19 @@ function getModoAlergenos() {
     if (['texto', 'imagen', 'ambos', 'ninguno'].includes(v)) return v;
     return localStorage.getItem('cartelitos-mostrarAlergenos') === '0' ? 'ninguno' : 'texto';
   } catch (e) { return 'texto'; }
+}
+
+// Si el contenido de un cartelito no cabe, reduce proporcionalmente tipografías e
+// iconos (variable --fit, hasta un 50%) hasta que quepa. Se aplica igual al imprimir.
+function ajustarCartelitos() {
+  document.querySelectorAll('.cartelito').forEach(c => {
+    c.style.removeProperty('--fit');
+    let f = 1;
+    while (c.scrollHeight > c.clientHeight + 1 && f > 0.5) {
+      f -= 0.05;
+      c.style.setProperty('--fit', f.toFixed(2));
+    }
+  });
 }
 
 function actualizarContador() {
@@ -1533,7 +1551,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderTodo();
   });
 
-  document.getElementById('btn-imprimir').addEventListener('click', () => window.print());
+  document.getElementById('btn-imprimir').addEventListener('click', () => { ajustarCartelitos(); window.print(); });
 
   const selAl = document.getElementById('sel-modo-alergenos');
   selAl.value = getModoAlergenos();

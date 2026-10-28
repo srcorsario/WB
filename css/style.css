@@ -1064,3 +1064,6 @@ main {
 .cartelito .cartelito-alerg { font-size: calc(8.5pt * var(--fit, 1)); margin: 0; }
 .cartelito .cartelito-alerg-iconos { margin: 0; }
 .cartelito .cartelito-alerg-iconos img { height: calc(7mm * var(--fit, 1)); }
+
+.import-correccion { display: block; margin-top: 2px; padding: 1px 6px; border: 1px solid #f0c27b; border-radius: 8px; background: #fdebd0; color: #b9770e; font-size: 0.75rem; cursor: pointer; text-align: left; }
+.import-opciones { display: block; width: 100%; margin-top: 2px; font-size: 0.75rem; }

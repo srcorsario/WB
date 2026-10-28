@@ -976,24 +976,11 @@ function parseRespuestaTraduccion(texto, nombreEsOriginal) {
   }
 }
 
-// Pide a Gemini, en una sola llamada, que (1) revise si el nombre en español
-// tiene una falta de ortografía clara y (2) lo traduzca al inglés en 3
-// estilos distintos — entendiendo el plato aunque el texto tenga esa falta,
-// igual que lo entendería una persona. Así, tanto si el usuario acepta la
-// corrección como si la rechaza, las opciones de traducción ya generadas
-// siguen siendo válidas y no hace falta una segunda llamada (ni gastar el
-// doble de cuota de las claves de Gemini).
-async function traducirYRevisarConGemini(nombreEs, categoria) {
-  const keys = getGeminiKeys();
-  if (keys.length === 0) {
-    throw new Error('No hay ninguna clave de Gemini configurada. Pulsa "⚙️ Traducción" para añadir una.');
-  }
-
-  const prompt = 'Vas a ayudar con la carta de un buffet/restaurante. Te doy el nombre de un ' +
-    'plato en español tal como lo ha escrito el encargado (puede tener alguna falta de ' +
-    'ortografía). Categoría: "' + categoria + '". ' +
-    'Nombre en español (tal cual se escribió): "' + nombreEs + '". ' +
-    'La categoría indica solo en qué sección de la carta está colocado el plato (útil para el ' +
+// Reglas de revisión ortográfica y traducción, compartidas por el alta individual
+// ("+ Añadir plato") y la importación en bloque (js/importar.js), para que ambas
+// traduzcan exactamente con el mismo criterio.
+function reglasTraduccion() {
+  return 'La categoría indica solo en qué sección de la carta está colocado el plato (útil para el ' +
     'tono de la traducción), pero NO es garantía de que sea dulce, salado, ni de sus ' +
     'ingredientes: básate siempre en lo que el nombre del plato dice que es realmente, aunque no ' +
     'encaje del todo con la categoría en la que está (por ejemplo, un plato salado puede estar ' +
@@ -1035,7 +1022,27 @@ async function traducirYRevisarConGemini(nombreEs, categoria) {
     'genérica: la descripción debería reflejar eso aunque el nombre en español solo diga "frito ' +
     'mallorquín". Si el plato no te suena y no lo reconoces con seguridad, entonces sí basa la ' +
     'descripción solo en lo que las palabras del nombre dicen literalmente, sin inventar ' +
-    'ingredientes que no puedas deducir de ellas. ' +
+    'ingredientes que no puedas deducir de ellas. ';
+}
+
+// Pide a Gemini, en una sola llamada, que (1) revise si el nombre en español
+// tiene una falta de ortografía clara y (2) lo traduzca al inglés en 3
+// estilos distintos — entendiendo el plato aunque el texto tenga esa falta,
+// igual que lo entendería una persona. Así, tanto si el usuario acepta la
+// corrección como si la rechaza, las opciones de traducción ya generadas
+// siguen siendo válidas y no hace falta una segunda llamada (ni gastar el
+// doble de cuota de las claves de Gemini).
+async function traducirYRevisarConGemini(nombreEs, categoria) {
+  const keys = getGeminiKeys();
+  if (keys.length === 0) {
+    throw new Error('No hay ninguna clave de Gemini configurada. Pulsa "⚙️ Traducción" para añadir una.');
+  }
+
+  const prompt = 'Vas a ayudar con la carta de un buffet/restaurante. Te doy el nombre de un ' +
+    'plato en español tal como lo ha escrito el encargado (puede tener alguna falta de ' +
+    'ortografía). Categoría: "' + categoria + '". ' +
+    'Nombre en español (tal cual se escribió): "' + nombreEs + '". ' +
+    reglasTraduccion() +
     'Responde ÚNICAMENTE con un objeto JSON válido, sin texto adicional ni bloques de código, ' +
     'con este formato exacto: ' +
     '{"correccion":{"hayError":false,"texto":"..."},"opciones":[{"estilo":"Literal","texto":"..."},' +

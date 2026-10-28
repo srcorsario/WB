@@ -108,19 +108,30 @@ function parsearListaPlatos(texto) {
   return [...porNombre.values()];
 }
 
-async function traducirListaConGemini(nombres, categorias) {
+// Traduce una lista de platos con EXACTAMENTE las mismas reglas que el alta
+// individual (reglasTraduccion() en app.js): revisión ortográfica + 3 estilos.
+// opts: { categoriaFija } o { categorias } (reparto automático).
+async function traducirListaConGemini(nombres, opts) {
   const keys = getGeminiKeys();
   if (!keys.length) throw new Error('No hay ninguna clave de Gemini. Pulsa "⚙️ Traducción" para añadir una.');
-  const prompt = 'Traduce al inglés estos nombres de platos de un buffet de hotel/restaurante (español, Mallorca), para cartelitos. ' +
-    'Traducción literal y neutra, sin inventar ingredientes ni cambiar el plato por otro. ' +
-    'Si el nombre usa una palabra de cocina española/regional que NO sea universalmente conocida en inglés ' +
-    '(p. ej. "coca", "ensaimada", "cocarroi", "trampó", "empanada" sí se deja), mantenla y añade una breve explicación en inglés sencillo: "<Nombre>, <descripción breve>". ' +
-    'Marcas o nombres propios se dejan igual. ' +
-    (categorias ? 'Además asigna a cada plato la categoría más adecuada de esta lista cerrada (copia el texto exacto): ' + JSON.stringify(categorias) + '. Es OBLIGATORIO que cada plato lleve su "cat" (no uses la primera por defecto: razona cada plato). ' +
-      'Ojo: dulces, bollería, trenzas, cocas dulces, ensaimadas, magdalenas → postres (si existe); empanadas, cocas saladas, conos → entrantes (si existe). ' : '') +
-    'Responde ÚNICAMENTE con un array JSON del mismo tamaño y orden que la lista, sin texto adicional, ' +
-    (categorias ? 'donde cada elemento es {"en":"traducción","cat":"categoría"}. ' : 'donde cada elemento es un string con la traducción. ') + 'Lista: ' +
-    JSON.stringify(nombres);
+  const auto = !opts.categoriaFija;
+  const prompt = 'Vas a ayudar con la carta de un buffet/restaurante. Te doy una LISTA de nombres de ' +
+    'platos en español tal como los ha escrito el encargado (pueden tener alguna falta de ortografía). ' +
+    (auto
+      ? 'Para cada plato, elige además la categoría (sección de la carta) más adecuada de esta lista ' +
+        'cerrada, copiando el texto exacto: ' + JSON.stringify(opts.categorias) + '. Es OBLIGATORIO que ' +
+        'cada plato lleve su categoría: razona cada plato por separado, no uses la primera por defecto ' +
+        '(orientación: bollería, trenzas, cocas dulces, ensaimadas, muffins → postres si existe; ' +
+        'empanadas, cocas saladas, conos → entrantes si existe). '
+      : 'Todos van en la categoría: "' + opts.categoriaFija + '". ') +
+    'Aplica a CADA plato de la lista, por separado, exactamente estas instrucciones: ' +
+    reglasTraduccion() + ' ' +
+    'Responde ÚNICAMENTE con un array JSON válido, sin texto adicional ni bloques de código, del ' +
+    'mismo tamaño y en el mismo orden que la lista, donde cada elemento tiene este formato exacto: ' +
+    '{"correccion":{"hayError":false,"texto":"..."},"opciones":[{"estilo":"Literal","texto":"..."},' +
+    '{"estilo":"Breve","texto":"..."},{"estilo":"Formal","texto":"..."}]' + (auto ? ',"cat":"..."' : '') + '} ' +
+    '— en "correccion.texto" escribe siempre el nombre en español: corregido si hayError es true, ' +
+    'o exactamente igual al original si hayError es false. Lista: ' + JSON.stringify(nombres);
   let ultimoError = '';
   for (const key of keys) {
     try {
@@ -135,10 +146,11 @@ async function traducirListaConGemini(nombres, categorias) {
       const m = txt.match(/\[[\s\S]*\]/);
       const arr = m ? JSON.parse(m[0]) : null;
       if (Array.isArray(arr) && arr.length === nombres.length) {
-        return arr.map(x => {
-          const o = (x && typeof x === 'object') ? x : { en: x };
-          return { en: String(o.en || '').trim().replace(/\.$/, ''), cat: String(o.cat || '').trim() };
-        });
+        // Cada elemento se analiza con el mismo parser que el alta individual
+        return arr.map((o, j) => ({
+          ...parseRespuestaTraduccion(JSON.stringify(o || {}), nombres[j]),
+          cat: String((o && o.cat) || '').trim()
+        }));
       }
       ultimoError = 'Respuesta de Gemini no válida.';
     } catch (e) { ultimoError = e.message; }
@@ -186,11 +198,17 @@ async function analizarListaImportar() {
   btn.textContent = 'Traduciendo...';
   let aviso = '';
   try {
-    const TAM = 25;
+    const TAM = 12;
     for (let i = 0; i < lista.length; i += TAM) {
       const trozo = lista.slice(i, i + TAM);
-      const res = await traducirListaConGemini(trozo.map(p => p.nombre_es), auto ? cats : null);
-      trozo.forEach((p, j) => { p.nombre_en = res[j].en; p.categoria = res[j].cat; });
+      const res = await traducirListaConGemini(trozo.map(p => p.nombre_es), auto ? { categorias: cats } : { categoriaFija: catSel });
+      trozo.forEach((p, j) => {
+        p.opciones = res[j].opciones;
+        p.nombre_en = res[j].opciones[0]?.texto || '';  // por defecto la literal, como en el alta individual
+        p.correccion = res[j].correccion.hayError ? aSentenceCase(res[j].correccion.texto) : null;
+        p.categoria = res[j].cat;
+      });
+      btn.textContent = `Traduciendo... (${Math.min(i + TAM, lista.length)}/${lista.length})`;
     }
   } catch (e) {
     aviso = 'No se pudo traducir todo (' + e.message + '). Rellena a mano los ingleses vacíos o vuelve a intentarlo.';
@@ -222,8 +240,8 @@ function renderPreviewImportar() {
     const tdChk = document.createElement('td');
     const chk = document.createElement('input');
     chk.type = 'checkbox';
-    chk.checked = !f.existe;
-    f.incluir = chk.checked;
+    if (f.incluir === undefined) f.incluir = !f.existe;
+    chk.checked = f.incluir;
     chk.addEventListener('change', () => { f.incluir = chk.checked; actualizarBotonGuardarImport(); });
     tdChk.appendChild(chk);
     tr.appendChild(tdChk);
@@ -236,8 +254,35 @@ function renderPreviewImportar() {
     if (!f.categoria) selCat.classList.add('import-sin-cat');
     tdCat.appendChild(selCat);
     tr.appendChild(tdCat);
-    tr.appendChild(celda('nombre_es', 'Español'));
-    tr.appendChild(celda('nombre_en', 'English'));
+    // Español + sugerencia de corrección ortográfica (como el "¿Quisiste decir...?" individual)
+    const tdEs = celda('nombre_es', 'Español');
+    if (f.correccion) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'import-correccion';
+      chip.textContent = '¿' + f.correccion + '? ✓';
+      chip.title = 'Pulsa para aplicar la corrección';
+      chip.addEventListener('click', () => {
+        f.nombre_es = f.correccion;
+        f.correccion = null;
+        tdEs.querySelector('input').value = f.nombre_es;
+        chip.remove();
+        actualizarBotonCorrecciones();
+      });
+      tdEs.appendChild(chip);
+    }
+    tr.appendChild(tdEs);
+    // Inglés + selector de las 3 alternativas (Literal / Breve / Formal)
+    const tdEn = celda('nombre_en', 'English');
+    if (f.opciones && f.opciones.length > 1) {
+      const sel = document.createElement('select');
+      sel.className = 'import-opciones';
+      f.opciones.forEach(o => sel.add(new Option((o.estilo ? o.estilo + ': ' : '') + o.texto, o.texto)));
+      sel.value = f.nombre_en;
+      sel.addEventListener('change', () => { f.nombre_en = sel.value; tdEn.querySelector('input').value = sel.value; });
+      tdEn.appendChild(sel);
+    }
+    tr.appendChild(tdEn);
     tr.appendChild(celda('alergenos_es', 'Alérgenos'));
     tr.appendChild(celda('alergenos_en', 'Allergens'));
     if (f.existe) tr.title = 'Ya existe un plato con este nombre; desmarcado por defecto';
@@ -245,6 +290,19 @@ function renderPreviewImportar() {
     tbody.appendChild(tr);
   });
   actualizarBotonGuardarImport();
+  actualizarBotonCorrecciones();
+}
+
+function actualizarBotonCorrecciones() {
+  const n = importFilas.filter(f => f.correccion).length;
+  const b = document.getElementById('btn-import-correcciones');
+  b.hidden = n === 0;
+  b.textContent = `✓ Aplicar todas las correcciones (${n})`;
+}
+
+function aplicarTodasCorrecciones() {
+  importFilas.forEach(f => { if (f.correccion) { f.nombre_es = f.correccion; f.correccion = null; } });
+  renderPreviewImportar();
 }
 
 function actualizarBotonGuardarImport() {
@@ -309,4 +367,5 @@ document.addEventListener('DOMContentLoaded', () => {
     mostrarErrorImport('');
   });
   document.getElementById('btn-import-guardar').addEventListener('click', guardarImportados);
+  document.getElementById('btn-import-correcciones').addEventListener('click', aplicarTodasCorrecciones);
 });

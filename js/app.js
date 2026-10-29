@@ -833,6 +833,7 @@ function renderCartelitos() {
     grupo.forEach(plato => {
       const nodo = tpl.content.cloneNode(true);
       nodo.querySelector('.cartelito-categoria').textContent = plato.categoria;
+      nodo.querySelector('.cartelito-editar').addEventListener('click', () => abrirModalEditarPlato(plato));
       nodo.querySelector('.cartelito-quitar').addEventListener('click', () => alternarSeleccion(plato.id, false));
       nodo.querySelector('.cartelito-es').textContent = aplicarFormatoNombre(plato.nombre_es, formatoTexto);
       nodo.querySelector('.cartelito-en').textContent = aplicarFormatoNombre(plato.nombre_en || '', formatoTexto);
@@ -842,6 +843,7 @@ function renderCartelitos() {
         if (modoAl === 'texto' || modoAl === 'ambos') {
           const aEs = nodo.querySelector('.cartelito-alerg-es');
           const aEn = nodo.querySelector('.cartelito-alerg-en');
+          nodo.querySelector('.cartelito-alerg-textos').hidden = false;
           if (plato.alergenos_es) { aEs.textContent = plato.alergenos_es; aEs.hidden = false; }
           if (plato.alergenos_en) { aEn.textContent = plato.alergenos_en; aEn.hidden = false; }
         }
@@ -1404,6 +1406,55 @@ function obtenerCategoriaSeleccionada() {
   return valor;
 }
 
+// ---------- Selector de alérgenos (checks con icono y nombre) ----------
+
+const ALERGENOS_CHECK = [
+  ['gluten', 'Gluten'], ['lactosa', 'Lactosa'], ['huevo', 'Huevo'], ['soja', 'Soja'],
+  ['sesamo', 'Sésamo'], ['frutoscascara', 'Frutos de cáscara'], ['cacahuete', 'Cacahuetes'],
+  ['mostaza', 'Mostaza'], ['apio', 'Apio'], ['pescado', 'Pescado'], ['altramuces', 'Altramuces'],
+  ['sulfitos', 'Sulfitos'], ['crustaceo', 'Crustáceos'], ['molusco', 'Moluscos'],
+  ['vegano', 'Vegano'], ['vegetariano', 'Vegetariano']
+];
+let alergenosNombreOriginal = {}; // icono -> nombre ES guardado (p. ej. "Almendras"), se conserva si sigue marcado
+let alergenosExtra = [];          // textos sin icono conocido: se conservan tal cual
+
+function pintarSelectorAlergenos(textoEs) {
+  alergenosNombreOriginal = {};
+  alergenosExtra = [];
+  const marcados = new Set();
+  String(textoEs || '').split(/[,;]|\s+y\s+/i).map(t => t.replace(/[.\s]+$/g, '').trim()).filter(Boolean).forEach(t => {
+    const ic = ICONOS_ALERGENOS[sinAcentos(t)];
+    if (ic) { marcados.add(ic); if (!alergenosNombreOriginal[ic]) alergenosNombreOriginal[ic] = t; }
+    else if (!alergenosExtra.includes(t)) alergenosExtra.push(t);
+  });
+  const grid = document.getElementById('nuevo-alergenos-grid');
+  grid.innerHTML = '';
+  ALERGENOS_CHECK.forEach(([ic, nombre]) => {
+    const lab = document.createElement('label');
+    lab.className = 'alerg-check';
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = ic;
+    cb.checked = marcados.has(ic);
+    const img = document.createElement('img');
+    img.src = 'img/alergenos/' + ic + '.webp';
+    img.alt = '';
+    const sp = document.createElement('span');
+    sp.textContent = alergenosNombreOriginal[ic] || nombre;
+    lab.append(cb, img, sp);
+    grid.appendChild(lab);
+  });
+}
+
+function textoAlergenosSeleccionados() {
+  const out = [];
+  document.querySelectorAll('#nuevo-alergenos-grid input:checked').forEach(cb => {
+    const def = ALERGENOS_CHECK.find(a => a[0] === cb.value);
+    out.push(alergenosNombreOriginal[cb.value] || (def ? def[1] : cb.value));
+  });
+  return out.concat(alergenosExtra).join(', ');
+}
+
 function abrirModalNuevoPlato(categoriaPreseleccionada) {
   platoEditandoId = null;
   document.getElementById('modal-nuevo-plato-titulo').textContent = 'Añadir plato nuevo';
@@ -1412,8 +1463,7 @@ function abrirModalNuevoPlato(categoriaPreseleccionada) {
 
   document.getElementById('nuevo-nombre-es').value = '';
   document.getElementById('nuevo-nombre-en').value = '';
-  document.getElementById('nuevo-alergenos-es').value = '';
-  document.getElementById('nuevo-alergenos-en').value = '';
+  pintarSelectorAlergenos('');
   document.getElementById('form-nuevo-plato-error').hidden = true;
   ocultarOpcionesTraduccion();
   ocultarCorreccionOrtografica();
@@ -1429,8 +1479,7 @@ function abrirModalEditarPlato(plato) {
 
   document.getElementById('nuevo-nombre-es').value = plato.nombre_es;
   document.getElementById('nuevo-nombre-en').value = plato.nombre_en || '';
-  document.getElementById('nuevo-alergenos-es').value = plato.alergenos_es || '';
-  document.getElementById('nuevo-alergenos-en').value = plato.alergenos_en || '';
+  pintarSelectorAlergenos(plato.alergenos_es || '');
   document.getElementById('form-nuevo-plato-error').hidden = true;
   ocultarOpcionesTraduccion();
   ocultarCorreccionOrtografica();
@@ -1518,9 +1567,9 @@ async function enviarNuevoPlato(ev) {
     }
 
     btnGuardar.textContent = 'Guardando...';
-    let alEs = document.getElementById('nuevo-alergenos-es').value.trim();
-    let alEn = document.getElementById('nuevo-alergenos-en').value.trim();
-    if (alEs && !alEn) { const n = normalizarAlergenos(alEs); alEs = n.es; alEn = n.en; }
+    let alEs = textoAlergenosSeleccionados();
+    let alEn = '';
+    if (alEs) { const n = normalizarAlergenos(alEs); alEs = n.es; alEn = n.en; }
     const plato = { id: esEdicion ? platoEditandoId : siguienteId(), categoria, nombre_es: nombreEs, nombre_en: nombreEn, alergenos_es: alEs, alergenos_en: alEn };
 
     guardarPlatoRemoto(esEdicion ? 'update' : 'add', plato);

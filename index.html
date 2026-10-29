@@ -99,12 +99,15 @@
 <template id="tpl-cartelito">
   <div class="cartelito">
     <div class="cartelito-categoria no-print"></div>
+    <button type="button" class="cartelito-editar no-print" title="Editar plato">✏️</button>
     <button type="button" class="cartelito-quitar no-print" title="Quitar de la lista">✕</button>
     <div class="cartelito-es"></div>
     <div class="cartelito-en"></div>
     <div class="cartelito-alerg-iconos" hidden></div>
-    <div class="cartelito-alerg cartelito-alerg-es" hidden></div>
-    <div class="cartelito-alerg cartelito-alerg-en" hidden></div>
+    <div class="cartelito-alerg-textos" hidden>
+      <div class="cartelito-alerg cartelito-alerg-es" hidden></div>
+      <div class="cartelito-alerg cartelito-alerg-en" hidden></div>
+    </div>
   </div>
 </template>
 
@@ -138,12 +141,12 @@
         </div>
         <div id="opciones-traduccion" class="opciones-traduccion" hidden></div>
       </label>
-      <label>Alérgenos en español <span class="opcional">(opcional, separados por comas)</span>
-        <input type="text" id="nuevo-alergenos-es" placeholder="Ej. Gluten, Huevo, Lactosa">
-      </label>
-      <label>Alérgenos en inglés <span class="opcional">(opcional, se traducen si lo dejas vacío)</span>
-        <input type="text" id="nuevo-alergenos-en" placeholder="Ej. Gluten, Egg, Lactose">
-      </label>
+      <div class="alerg-selector">
+        <div class="alerg-titulo">Alérgenos <span class="opcional">(opcional)</span></div>
+        <div id="nuevo-alergenos-grid" class="alerg-grid"></div>
+      </div>
+      <input type="hidden" id="nuevo-alergenos-es">
+      <input type="hidden" id="nuevo-alergenos-en">
       <div id="form-nuevo-plato-error" class="form-error" hidden></div>
       <div class="modal-botones">
         <button type="button" id="btn-cancelar-nuevo" class="btn secundario">Cancelar</button>

@@ -843,6 +843,8 @@ function renderCartelitos() {
       elEs.hidden = !verEs;
       elEn.textContent = verEn ? aplicarFormatoNombre(plato.nombre_en || '', formatoTexto) : '';
       elEn.hidden = !verEn || !plato.nombre_en;
+      // Con un solo idioma, el texto usa el tamaño y estilo del castellano
+      nodo.querySelector('.cartelito').classList.toggle('un-idioma', elEs.hidden !== elEn.hidden);
       const modoAl = getModoAlergenos();
       if (modoAl !== 'ninguno' && (plato.alergenos_es || plato.alergenos_en)) {
         nodo.querySelector('.cartelito').classList.add('con-alerg');

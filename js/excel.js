@@ -151,8 +151,9 @@ async function exportarExcelCartelitos() {
       const nbs = s => s.split(', ').map(t => t.replace(/ /g, NBSP)).join(', ');
       const alEn = idioma !== 'es' && (modo === 'texto' || modo === 'ambos') && p.alergenos_en ? nbs(p.alergenos_en.split(',').map(t => t.trim()).filter(Boolean).join(', ')) : '';
       return {
-        es: verEs ? aplicarFormatoNombre(p.nombre_es, formato) : '',
-        en: verEn ? aplicarFormatoNombre(p.nombre_en || '', formato) : '',
+        // Solo inglés: va en la fila principal, con el tamaño y estilo del castellano
+        es: verEs ? aplicarFormatoNombre(p.nombre_es, formato) : aplicarFormatoNombre(p.nombre_en || '', formato),
+        en: verEs ? (verEn ? aplicarFormatoNombre(p.nombre_en || '', formato) : '') : '',
         alEs: alEs ? nbs(alEs) : '', alEn,
         iconos: (modo === 'imagen' || modo === 'ambos') ? iconosAlergenos(p.alergenos_es) : []
       };

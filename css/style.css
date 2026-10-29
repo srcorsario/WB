@@ -1094,3 +1094,6 @@ main {
 .cartelito .al-linea { white-space: nowrap; }
 
 .cartelito-es[hidden], .cartelito-en[hidden] { display: none; }
+
+/* Un solo idioma: el inglés (o el castellano) usa el tamaño y estilo del nombre principal */
+.cartelito.un-idioma .cartelito-en { font-family: var(--fuente-es); font-size: var(--tamano-es); font-weight: 800; color: inherit; letter-spacing: 0.01em; }

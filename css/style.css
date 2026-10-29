@@ -1038,7 +1038,7 @@ main {
 @media print { .cartelito-quitar { display: none !important; } }
 
 /* Categoría informativa (solo pantalla, no se imprime) */
-.cartelito-categoria { position: absolute; top: 6px; left: 8px; right: 62px; font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cartelito-categoria { position: absolute; top: 6px; left: 8px; right: calc(50% + 18px); font-family: 'Montserrat', sans-serif; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #888; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 @media print { .cartelito-categoria { display: none !important; } }
 
 .import-sin-cat { border: 2px solid #c0392b; }
@@ -1075,21 +1075,16 @@ main {
 }
 
 /* Botón editar del cartelito (solo pantalla) */
-.cartelito-editar { position: absolute; top: 4px; right: 30px; width: 22px; height: 22px; padding: 0; border: 1px solid #bbb; border-radius: 50%; background: #fff; font-size: 11px; line-height: 1; cursor: pointer; }
+.cartelito-editar { position: absolute; top: 4px; left: 50%; transform: translateX(-50%); width: 22px; height: 22px; padding: 0; border: 1px solid #bbb; border-radius: 50%; background: #fff; font-size: 11px; line-height: 1; cursor: pointer; }
 .cartelito-editar:hover { background: #eee; }
 @media print { .cartelito-editar { display: none !important; } }
 
-/* Alérgenos del cartelito: ES y EN repartidos en dos columnas (más espacio -> letra más grande) */
-.cartelito .cartelito-alerg-textos { display: flex; align-items: stretch; justify-content: center; gap: 0.5rem; width: 100%; }
-.cartelito .cartelito-alerg-textos[hidden] { display: none; }
-.cartelito .cartelito-alerg-textos .cartelito-alerg { flex: 1 1 0; min-width: 0; }
-.cartelito .cartelito-alerg-es:not([hidden]) + .cartelito-alerg-en:not([hidden]) { border-left: 1px solid #ccc; padding-left: 0.5rem; }
-
 /* Selector de alérgenos del editor de plato */
-#modal-nuevo-plato .modal-contenido { max-height: 92vh; overflow-y: auto; }
+#modal-nuevo-plato .modal-contenido { max-width: 760px; max-height: 94vh; overflow-y: auto; }
 .alerg-titulo { font-weight: 600; margin: 0.8rem 0 0.4rem; }
-.alerg-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
-.alerg-check { display: flex; align-items: center; gap: 6px; padding: 3px 6px; border: 1px solid #e3ddd0; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 400; margin: 0; }
+.alerg-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+@media (max-width: 600px) { .alerg-grid { grid-template-columns: repeat(2, 1fr); } }
+.alerg-check { display: flex !important; flex-direction: row !important; align-items: center; gap: 6px; padding: 4px 6px; line-height: 1.1; border: 1px solid #e3ddd0; border-radius: 8px; cursor: pointer; font-size: 0.85rem; font-weight: 400; margin: 0; }
 .alerg-check:has(input:checked) { background: #fdebd0; border-color: #f0c27b; }
-.alerg-check input { width: auto; margin: 0; flex: none; }
-.alerg-check img { height: 22px; width: auto; flex: none; }
+.alerg-check input { width: auto !important; margin: 0; flex: none; display: inline-block !important; }
+.alerg-check img { height: 24px; width: auto; flex: none; }

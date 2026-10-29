@@ -843,7 +843,6 @@ function renderCartelitos() {
         if (modoAl === 'texto' || modoAl === 'ambos') {
           const aEs = nodo.querySelector('.cartelito-alerg-es');
           const aEn = nodo.querySelector('.cartelito-alerg-en');
-          nodo.querySelector('.cartelito-alerg-textos').hidden = false;
           if (plato.alergenos_es) { aEs.textContent = plato.alergenos_es; aEs.hidden = false; }
           if (plato.alergenos_en) { aEn.textContent = plato.alergenos_en; aEn.hidden = false; }
         }

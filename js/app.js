@@ -1118,6 +1118,41 @@ function parseRespuestaTraduccion(texto, nombreEsOriginal) {
 // Reglas de revisión ortográfica y traducción, compartidas por el alta individual
 // ("+ Añadir plato") y la importación en bloque (js/importar.js), para que ambas
 // traduzcan exactamente con el mismo criterio.
+// Máximo de líneas entre el nombre ES y el nombre EN en un cartelito.
+const MAX_LINEAS_NOMBRES = 4;
+
+// Cuenta cuántas líneas ocuparían ES + EN en un cartelito real (mismo ancho,
+// mismas fuentes y mismo formato de mayúsculas que al imprimir).
+function lineasNombres(es, en) {
+  const formato = getFormatoTexto();
+  const c = document.createElement('div');
+  c.className = 'cartelito con-alerg';
+  c.style.cssText = 'position:absolute;left:-9999px;top:0;visibility:hidden;width:92mm;height:auto;box-sizing:border-box;';
+  c.innerHTML = '<div class="cartelito-es"></div><div class="cartelito-en"></div>';
+  c.children[0].textContent = aplicarFormatoNombre(es || '', formato);
+  c.children[1].textContent = aplicarFormatoNombre(en || '', formato);
+  document.body.appendChild(c);
+  const n = el => {
+    const lh = parseFloat(getComputedStyle(el).lineHeight) || el.getBoundingClientRect().height;
+    return el.textContent ? Math.max(1, Math.round(el.getBoundingClientRect().height / lh)) : 0;
+  };
+  const total = n(c.children[0]) + n(c.children[1]);
+  c.remove();
+  return total;
+}
+
+// De las alternativas (Literal / Breve / Formal) elige la primera que cabe en
+// MAX_LINEAS_NOMBRES líneas; si ninguna cabe, la que menos líneas ocupa.
+function indiceOpcionPorLineas(nombreEs, opciones) {
+  let mejor = 0, mejorN = Infinity;
+  for (let i = 0; i < opciones.length; i++) {
+    const n = lineasNombres(nombreEs, opciones[i].texto);
+    if (n <= MAX_LINEAS_NOMBRES) return i;
+    if (n < mejorN) { mejorN = n; mejor = i; }
+  }
+  return mejor;
+}
+
 function reglasTraduccion() {
   return 'La categoría indica solo en qué sección de la carta está colocado el plato (útil para el ' +
     'tono de la traducción), pero NO es garantía de que sea dulce, salado, ni de sus ' +
@@ -1142,6 +1177,10 @@ function reglasTraduccion() {
     '1) literal y neutra, tal cual describe el plato; ' +
     '2) breve, como se vería en la carta de un restaurante; ' +
     '3) más formal o gastronómica. ' +
+    'IMPORTANTE: el cartelito es pequeño y entre el nombre en español y el inglés solo caben ' +
+    '4 líneas en total. Haz las 3 alternativas lo más cortas posible sin perder el sentido ' +
+    '(la literal también debe ser concisa; evita rellenos como "with", "served", "traditional" si no ' +
+    'aportan nada), y que al menos una sea claramente corta. ' +
     'Evita traducciones "creativas" que cambien el nombre del plato por otro plato distinto ' +
     '(por ejemplo, no traduzcas un jalapeño relleno como "jalapeño poppers"; describe lo que es). ' +
     'Si el nombre usa una palabra de cocina extranjera o regional (española, japonesa, etc.) que ' +
@@ -1685,7 +1724,7 @@ async function enviarNuevoPlato(ev) {
 
       // Si el usuario no ha elegido ninguna opción a mano, se usa la primera
       // (la traducción literal/neutra) como valor por defecto.
-      nombreEn = resultado.opciones[0].texto;
+      nombreEn = resultado.opciones[indiceOpcionPorLineas(nombreEs, resultado.opciones)].texto;
     }
 
     btnGuardar.textContent = 'Guardando...';

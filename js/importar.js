@@ -204,7 +204,7 @@ async function analizarListaImportar() {
       const res = await traducirListaConGemini(trozo.map(p => p.nombre_es), auto ? { categorias: cats } : { categoriaFija: catSel });
       trozo.forEach((p, j) => {
         p.opciones = res[j].opciones;
-        p.nombre_en = res[j].opciones[0]?.texto || '';  // por defecto la literal, como en el alta individual
+        p.nombre_en = res[j].opciones.length ? res[j].opciones[indiceOpcionPorLineas(p.nombre_es, res[j].opciones)].texto : '';  // la primera que quepa en 4 líneas (normalmente la literal)
         p.correccion = res[j].correccion.hayError ? aSentenceCase(res[j].correccion.texto) : null;
         p.categoria = res[j].cat;
       });

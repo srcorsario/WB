@@ -880,8 +880,8 @@ function getModoAlergenos() {
   try {
     const v = localStorage.getItem(LS_MODO_ALERGENOS);
     if (['texto', 'imagen', 'ambos', 'ninguno'].includes(v)) return v;
-    return localStorage.getItem('cartelitos-mostrarAlergenos') === '0' ? 'ninguno' : 'texto';
-  } catch (e) { return 'texto'; }
+    return 'ninguno'; // por defecto no se muestran alérgenos
+  } catch (e) { return 'ninguno'; }
 }
 
 // Si un cartelito no cabe, reduce SOLO su bloque de alérgenos (variable --fit). Los nombres

@@ -29,6 +29,9 @@ function sufijoFecha() { return new Date().toISOString().slice(0, 10); }
 
 async function exportarExcelDatos() {
   await cargarExcelJS();
+  const soloSel = (document.getElementById('sel-excel-datos') || {}).value === 'seleccion';
+  const lista = soloSel ? platos.filter(p => seleccion.has(p.id)) : platos;
+  if (!lista.length) { alert('No hay platos seleccionados.'); return; }
   const wb = new ExcelJS.Workbook();
   const ws = wb.addWorksheet('Platos', { views: [{ state: 'frozen', ySplit: 1 }] });
   ws.columns = [
@@ -40,7 +43,7 @@ async function exportarExcelDatos() {
     { header: 'Alérgenos EN', key: 'alen', width: 46 }
   ];
   const orden = categoriasOrdenadas();
-  [...platos].sort((a, b) =>
+  [...lista].sort((a, b) =>
     (orden.indexOf(a.categoria) - orden.indexOf(b.categoria)) || a.nombre_es.localeCompare(b.nombre_es, 'es')
   ).forEach(p => ws.addRow({
     id: isNaN(Number(p.id)) ? p.id : Number(p.id), categoria: p.categoria, es: p.nombre_es, en: p.nombre_en || '',
@@ -50,8 +53,8 @@ async function exportarExcelDatos() {
   ws.autoFilter = { from: 'A1', to: 'F1' };
 
   // Eventos (si se pueden leer)
-  try { if (!eventos.length && typeof cargarEventos === 'function' && urlWebApp()) await cargarEventos(); } catch (e) {}
-  if (eventos.length) {
+  if (!soloSel) try { if (!eventos.length && typeof cargarEventos === 'function' && urlWebApp()) await cargarEventos(); } catch (e) {}
+  if (!soloSel && eventos.length) {
     const we = wb.addWorksheet('Eventos', { views: [{ state: 'frozen', ySplit: 1 }] });
     we.columns = [
       { header: 'Evento', key: 'n', width: 30 }, { header: 'Fecha', key: 'f', width: 14 },
@@ -230,6 +233,11 @@ function conAvisoExcel(btn, fn) {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
+  const sel = document.getElementById('sel-excel-datos');
+  if (sel) {
+    try { sel.value = localStorage.getItem('cartelitos-excelDatos') === 'seleccion' ? 'seleccion' : 'todos'; } catch (e) {}
+    sel.addEventListener('change', () => { try { localStorage.setItem('cartelitos-excelDatos', sel.value); } catch (e) {} });
+  }
   const a = document.getElementById('btn-excel-datos');
   const b = document.getElementById('btn-excel-cartelitos');
   if (a) conAvisoExcel(a, exportarExcelDatos);

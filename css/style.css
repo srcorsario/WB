@@ -1059,7 +1059,8 @@ main {
 
 /* Ajuste automático para que todo quepa (--fit lo calcula ajustarCartelitos() en app.js) */
 :root { --tamano-alerg: 8.5pt; --tamano-iconos: 7mm; }
-.cartelito.con-alerg { padding: 22px 0.6rem 0.5rem; gap: calc(0.5rem * var(--fit, 1)); }
+.cartelito.con-alerg { padding: 16px 0.6rem 0.3rem; gap: calc(0.35rem * var(--fit, 1)); }
+.cartelito.con-alerg .cartelito-es, .cartelito.con-alerg .cartelito-en { line-height: 1.15; }
 .cartelito .cartelito-alerg { font-size: calc(var(--tamano-alerg) * var(--fit, 1)); margin: 0; }
 .cartelito .cartelito-alerg-iconos { margin: 0; }
 
@@ -1091,3 +1092,5 @@ main {
 .alerg-check img { height: 24px; width: auto; flex: none; }
 
 .cartelito .al-linea { white-space: nowrap; }
+
+.cartelito-es[hidden], .cartelito-en[hidden] { display: none; }

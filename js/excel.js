@@ -125,6 +125,7 @@ async function exportarExcelCartelitos() {
   const tip = getTipografia();
   const formato = getFormatoTexto();
   const modo = getModoAlergenos();
+  const idioma = getIdioma();
   const fEs = buscarFuente(tip.es.fuente).valor, fEn = buscarFuente(tip.en.fuente).valor;
   const interlin = 1.25, util = CARD_W_PX - 16;
 
@@ -145,12 +146,13 @@ async function exportarExcelCartelitos() {
   for (let ini = 0; ini < sel.length; ini += 2) {
     const par = sel.slice(ini, ini + 2);
     const datos = par.map(p => {
-      const alEs = (modo === 'texto' || modo === 'ambos') && p.alergenos_es ? p.alergenos_es.split(',').map(t => t.trim()).filter(Boolean).join(', ').replace(/ (?!$)/g, ' ') : '';
+      const verEs = idioma !== 'en' || !p.nombre_en, verEn = idioma !== 'es';
+      const alEs = idioma !== 'en' && (modo === 'texto' || modo === 'ambos') && p.alergenos_es ? p.alergenos_es.split(',').map(t => t.trim()).filter(Boolean).join(', ').replace(/ (?!$)/g, ' ') : '';
       const nbs = s => s.split(', ').map(t => t.replace(/ /g, NBSP)).join(', ');
-      const alEn = (modo === 'texto' || modo === 'ambos') && p.alergenos_en ? nbs(p.alergenos_en.split(',').map(t => t.trim()).filter(Boolean).join(', ')) : '';
+      const alEn = idioma !== 'es' && (modo === 'texto' || modo === 'ambos') && p.alergenos_en ? nbs(p.alergenos_en.split(',').map(t => t.trim()).filter(Boolean).join(', ')) : '';
       return {
-        es: aplicarFormatoNombre(p.nombre_es, formato),
-        en: aplicarFormatoNombre(p.nombre_en || '', formato),
+        es: verEs ? aplicarFormatoNombre(p.nombre_es, formato) : '',
+        en: verEn ? aplicarFormatoNombre(p.nombre_en || '', formato) : '',
         alEs: alEs ? nbs(alEs) : '', alEn,
         iconos: (modo === 'imagen' || modo === 'ambos') ? iconosAlergenos(p.alergenos_es) : []
       };

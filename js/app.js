@@ -835,16 +835,22 @@ function renderCartelitos() {
       nodo.querySelector('.cartelito-categoria').textContent = plato.categoria;
       nodo.querySelector('.cartelito-editar').addEventListener('click', () => abrirModalEditarPlato(plato));
       nodo.querySelector('.cartelito-quitar').addEventListener('click', () => alternarSeleccion(plato.id, false));
-      nodo.querySelector('.cartelito-es').textContent = aplicarFormatoNombre(plato.nombre_es, formatoTexto);
-      nodo.querySelector('.cartelito-en').textContent = aplicarFormatoNombre(plato.nombre_en || '', formatoTexto);
+      const idioma = getIdioma();
+      const verEs = idioma !== 'en' || !plato.nombre_en;   // sin inglés, se muestra el castellano
+      const verEn = idioma !== 'es';
+      const elEs = nodo.querySelector('.cartelito-es'), elEn = nodo.querySelector('.cartelito-en');
+      elEs.textContent = verEs ? aplicarFormatoNombre(plato.nombre_es, formatoTexto) : '';
+      elEs.hidden = !verEs;
+      elEn.textContent = verEn ? aplicarFormatoNombre(plato.nombre_en || '', formatoTexto) : '';
+      elEn.hidden = !verEn || !plato.nombre_en;
       const modoAl = getModoAlergenos();
       if (modoAl !== 'ninguno' && (plato.alergenos_es || plato.alergenos_en)) {
         nodo.querySelector('.cartelito').classList.add('con-alerg');
         if (modoAl === 'texto' || modoAl === 'ambos') {
           const aEs = nodo.querySelector('.cartelito-alerg-es');
           const aEn = nodo.querySelector('.cartelito-alerg-en');
-          if (plato.alergenos_es) { pintarAlergenosTexto(aEs, plato.alergenos_es); aEs.hidden = false; }
-          if (plato.alergenos_en) { pintarAlergenosTexto(aEn, plato.alergenos_en); aEn.hidden = false; }
+          if (plato.alergenos_es && idioma !== 'en') { pintarAlergenosTexto(aEs, plato.alergenos_es); aEs.hidden = false; }
+          if (plato.alergenos_en && idioma !== 'es') { pintarAlergenosTexto(aEn, plato.alergenos_en); aEn.hidden = false; }
         }
         if (modoAl === 'imagen' || modoAl === 'ambos') {
           const cont = nodo.querySelector('.cartelito-alerg-iconos');
@@ -876,6 +882,14 @@ function renderCartelitos() {
 }
 
 const LS_MODO_ALERGENOS = 'cartelitos-modoAlergenos'; // texto | imagen | ambos | ninguno
+const LS_IDIOMA = 'cartelitos-idioma'; // es | en | ambos (por defecto ambos)
+function getIdioma() {
+  try {
+    const v = localStorage.getItem(LS_IDIOMA);
+    return ['es', 'en', 'ambos'].includes(v) ? v : 'ambos';
+  } catch (e) { return 'ambos'; }
+}
+
 function getModoAlergenos() {
   try {
     const v = localStorage.getItem(LS_MODO_ALERGENOS);
@@ -1800,6 +1814,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('btn-imprimir').addEventListener('click', () => { ajustarCartelitos(); window.print(); });
+
+  const selIdioma = document.getElementById('sel-idioma');
+  selIdioma.value = getIdioma();
+  selIdioma.addEventListener('change', () => {
+    try { localStorage.setItem(LS_IDIOMA, selIdioma.value); } catch (e) {}
+    renderCartelitos();
+  });
 
   const selAl = document.getElementById('sel-modo-alergenos');
   selAl.value = getModoAlergenos();

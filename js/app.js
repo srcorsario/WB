@@ -842,8 +842,8 @@ function renderCartelitos() {
         if (modoAl === 'texto' || modoAl === 'ambos') {
           const aEs = nodo.querySelector('.cartelito-alerg-es');
           const aEn = nodo.querySelector('.cartelito-alerg-en');
-          if (plato.alergenos_es) { aEs.textContent = 'Alérgenos: ' + plato.alergenos_es; aEs.hidden = false; }
-          if (plato.alergenos_en) { aEn.textContent = 'Allergens: ' + plato.alergenos_en; aEn.hidden = false; }
+          if (plato.alergenos_es) { aEs.textContent = plato.alergenos_es; aEs.hidden = false; }
+          if (plato.alergenos_en) { aEn.textContent = plato.alergenos_en; aEn.hidden = false; }
         }
         if (modoAl === 'imagen' || modoAl === 'ambos') {
           const cont = nodo.querySelector('.cartelito-alerg-iconos');

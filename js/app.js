@@ -843,8 +843,8 @@ function renderCartelitos() {
         if (modoAl === 'texto' || modoAl === 'ambos') {
           const aEs = nodo.querySelector('.cartelito-alerg-es');
           const aEn = nodo.querySelector('.cartelito-alerg-en');
-          if (plato.alergenos_es) { aEs.textContent = plato.alergenos_es; aEs.hidden = false; }
-          if (plato.alergenos_en) { aEn.textContent = plato.alergenos_en; aEn.hidden = false; }
+          if (plato.alergenos_es) { pintarAlergenosTexto(aEs, plato.alergenos_es); aEs.hidden = false; }
+          if (plato.alergenos_en) { pintarAlergenosTexto(aEn, plato.alergenos_en); aEn.hidden = false; }
         }
         if (modoAl === 'imagen' || modoAl === 'ambos') {
           const cont = nodo.querySelector('.cartelito-alerg-iconos');
@@ -886,18 +886,141 @@ function getModoAlergenos() {
 
 // Si un cartelito no cabe, reduce SOLO su bloque de alérgenos (variable --fit). Los nombres
 // en español e inglés mantienen siempre el tamaño elegido en "🔤 Letra".
+// Cada alérgeno va en un bloque que no se parte ("Frutos de cáscara" nunca
+// queda cortado entre dos líneas). En reposo se muestran en su orden y el
+// navegador reparte las líneas; si el cartelito no cabe, ajustarCartelitos()
+// los reparte entre líneas de otra forma para poder usar letra más grande.
+function pintarAlergenosTexto(el, texto) {
+  el._items = String(texto).split(',').map(t => t.trim()).filter(Boolean);
+  restaurarAlergenos(el);
+}
+
+function restaurarAlergenos(el) {
+  el.textContent = '';
+  const items = el._items || [];
+  items.forEach((t, i) => {
+    const sp = document.createElement('span');
+    sp.className = 'al-item';
+    sp.textContent = t + (i < items.length - 1 ? ',' : '');
+    el.appendChild(sp);
+    if (i < items.length - 1) el.appendChild(document.createTextNode(' '));
+  });
+}
+
+// Reparte los alérgenos en el menor número de líneas posible, repartiendo
+// las anchuras por igual (los nombres de cada línea mantienen el orden original).
+// Devuelve false si con ese tamaño de letra algún nombre no cabe en una línea.
+function empaquetarAlergenos(el, anchoDisp) {
+  const items = el._items || [];
+  if (!items.length) return true;
+  // Medir con todos los nombres en una línea sin partir
+  el.textContent = '';
+  const spans = items.map((t, i) => {
+    const sp = document.createElement('span');
+    sp.className = 'al-item';
+    sp.textContent = t + ',';
+    el.appendChild(sp);
+    el.appendChild(document.createTextNode(' '));
+    return sp;
+  });
+  const sep = parseFloat(getComputedStyle(el).fontSize) * 0.3;
+  const w = spans.map(s => s.getBoundingClientRect().width);
+  if (Math.max(...w) > anchoDisp) return false;
+  const total = w.reduce((x, y) => x + y + sep, 0);
+  let lineas = null;
+  for (let L = Math.max(1, Math.ceil(total / (anchoDisp + sep))); L <= items.length; L++) {
+    // Reparto "el más ancho primero, en la línea más vacía" + mejoras por intercambio
+    const bins = Array.from({ length: L }, () => []);
+    const suma = b => b.reduce((s, k) => s + w[k] + sep, -sep);
+    [...w.keys()].sort((p, q) => w[q] - w[p]).forEach(k => {
+      bins.sort((p, q) => suma(p) - suma(q));
+      bins[0].push(k);
+    });
+    let mejora = true, vueltas = 0;
+    while (mejora && vueltas++ < 50) {
+      mejora = false;
+      const mx = () => Math.max(...bins.map(suma));
+      const base = mx();
+      outer: for (let p = 0; p < L; p++) for (let q = 0; q < L; q++) {
+        if (p === q) continue;
+        for (let x = 0; x < bins[p].length; x++) {
+          // mover x de p a q
+          const kx = bins[p][x];
+          bins[p].splice(x, 1); bins[q].push(kx);
+          if (mx() < base - 0.5) { mejora = true; break outer; }
+          bins[q].pop(); bins[p].splice(x, 0, kx);
+          for (let y = 0; y < bins[q].length; y++) {
+            const ky = bins[q][y];
+            bins[p][x] = ky; bins[q][y] = kx;
+            if (mx() < base - 0.5) { mejora = true; break outer; }
+            bins[p][x] = kx; bins[q][y] = ky;
+          }
+        }
+      }
+    }
+    if (bins.every(b => suma(b) <= anchoDisp)) { lineas = bins; break; }
+  }
+  if (!lineas) return false;
+  // Orden dentro de la línea = orden original; líneas por su primer elemento
+  lineas.forEach(b => b.sort((p, q) => p - q));
+  lineas.sort((p, q) => p[0] - q[0]);
+  el.textContent = '';
+  lineas.forEach(b => {
+    const d = document.createElement('div');
+    d.className = 'al-linea';
+    d.textContent = b.map(k => items[k]).join(', ') + (b === lineas[lineas.length - 1] ? '' : ',');
+    el.appendChild(d);
+  });
+  return true;
+}
+
 function ajustarCartelitos() {
-  // Cada cartelito mantiene el tamaño de alérgenos elegido en "🔤 Letra";
-  // solo el que no cabe reduce su propio bloque de alérgenos lo justo
-  // (nunca los nombres). Así un plato con un nombre muy largo no hace
-  // diminuto el texto de todos los demás.
+  // Se mide el cartelito real (no se cuentan caracteres). Si no cabe, primero
+  // se encogen un poco los iconos (hasta 75 %) y solo después el texto de
+  // alérgenos, buscando el tamaño MÁS GRANDE que quepa (búsqueda binaria,
+  // pasos de 1 %) y repartiendo los alérgenos entre líneas para aprovechar
+  // todo el ancho. Los nombres ES/EN nunca se reducen.
   document.querySelectorAll('.cartelito').forEach(c => {
     c.style.removeProperty('--fit');
-    let f = 1;
-    while (c.scrollHeight > c.clientHeight + 1 && f > 0.5) {
-      f -= 0.05;
-      c.style.setProperty('--fit', f.toFixed(2));
+    c.style.removeProperty('--fit-ic');
+    const bloques = [c.querySelector('.cartelito-alerg-es'), c.querySelector('.cartelito-alerg-en')]
+      .filter(el => el && !el.hidden && el._items);
+    bloques.forEach(restaurarAlergenos);
+    const cabe = () => c.scrollHeight <= c.clientHeight + 1;
+    if (cabe()) return;
+    const cs = getComputedStyle(c);
+    const ancho = () => c.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    const probar = (prop, v) => {
+      c.style.setProperty(prop, v);
+      if (!bloques.length) return cabe();
+      const ok = bloques.map(el => empaquetarAlergenos(el, ancho()));
+      return cabe() && ok.every(Boolean);
+    };
+    const buscar = (prop, min) => {
+      let lo = min, hi = 1;
+      if (!probar(prop, lo)) return false;
+      while (hi - lo > 0.01) {
+        const m = (lo + hi) / 2;
+        if (probar(prop, m.toFixed(3))) lo = m; else hi = m;
+      }
+      probar(prop, lo.toFixed(3));
+      return true;
+    };
+    // 1) iconos (el texto va a tamaño completo, sin repartir)
+    c.style.setProperty('--fit-ic', 0.75);
+    bloques.forEach(restaurarAlergenos);
+    if (cabe()) {
+      let lo = 0.75, hi = 1;
+      while (hi - lo > 0.01) {
+        const m = (lo + hi) / 2;
+        c.style.setProperty('--fit-ic', m.toFixed(3));
+        if (cabe()) lo = m; else hi = m;
+      }
+      c.style.setProperty('--fit-ic', lo.toFixed(3));
+      return;
     }
+    // 2) texto: iconos al 75 % y letra lo más grande posible con reparto de líneas
+    if (!buscar('--fit', 0.5)) { c.style.setProperty('--fit', 0.5); bloques.forEach(restaurarAlergenos); }
   });
 }
 

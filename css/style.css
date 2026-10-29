@@ -1069,9 +1069,10 @@ main {
 /* Iconos: siempre una fila. 7 mm caben hasta 10; con más se encogen (mín. 5,5 mm) */
 .cartelito .cartelito-alerg-fila { flex-wrap: nowrap; gap: 1.2mm; }
 /* Texto de alérgenos: usa todo el ancho (sin reparto equilibrado) */
-.cartelito .cartelito-alerg { text-wrap: wrap; }
+.cartelito .cartelito-alerg { text-wrap: balance; line-height: 1.15; }
+.cartelito .al-item { white-space: nowrap; }
 .cartelito .cartelito-alerg-iconos img {
-  height: max(5.5mm, min(var(--tamano-iconos), (84mm - (var(--n, 1) - 1) * 1.2mm) / var(--n, 1)));
+  height: calc(max(5.5mm, min(var(--tamano-iconos), (84mm - (var(--n, 1) - 1) * 1.2mm) / var(--n, 1))) * var(--fit-ic, 1));
 }
 
 /* Botón editar del cartelito (solo pantalla) */
@@ -1088,3 +1089,5 @@ main {
 .alerg-check:has(input:checked) { background: #fdebd0; border-color: #f0c27b; }
 .alerg-check input { width: auto !important; margin: 0; flex: none; display: inline-block !important; }
 .alerg-check img { height: 24px; width: auto; flex: none; }
+
+.cartelito .al-linea { white-space: nowrap; }

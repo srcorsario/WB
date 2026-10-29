@@ -985,11 +985,14 @@ function ajustarCartelitos() {
     c.style.removeProperty('--fit-ic');
     const bloques = [c.querySelector('.cartelito-alerg-es'), c.querySelector('.cartelito-alerg-en')]
       .filter(el => el && !el.hidden && el._items);
-    bloques.forEach(restaurarAlergenos);
     const cabe = () => c.scrollHeight <= c.clientHeight + 1;
-    if (cabe()) return;
     const cs = getComputedStyle(c);
     const ancho = () => c.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+    // Siempre se reparten los alérgenos en el mínimo de líneas posible (aunque
+    // el cartelito ya quepa): evita usar 3 líneas cuando caben en 2.
+    const repartir = () => bloques.forEach(el => { if (!empaquetarAlergenos(el, ancho())) restaurarAlergenos(el); });
+    repartir();
+    if (cabe()) return;
     const probar = (prop, v) => {
       c.style.setProperty(prop, v);
       if (!bloques.length) return cabe();
@@ -1008,7 +1011,7 @@ function ajustarCartelitos() {
     };
     // 1) iconos (el texto va a tamaño completo, sin repartir)
     c.style.setProperty('--fit-ic', 0.75);
-    bloques.forEach(restaurarAlergenos);
+    repartir();
     if (cabe()) {
       let lo = 0.75, hi = 1;
       while (hi - lo > 0.01) {
